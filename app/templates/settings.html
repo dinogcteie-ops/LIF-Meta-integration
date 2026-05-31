@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <div class="page-kicker">Administration</div>
+    <h1 class="page-title">Settings</h1>
+    <p class="page-subtitle">Studio branding, finance defaults, and recurring expense management.</p>
+  </div>
+</header>
+
+<div class="settings-grid">
+
+  <!-- ── Studio settings ────────────────────────────────────────── -->
+  <section class="settings-section">
+    <div class="settings-section-header">
+      <h5><i class="bi bi-building me-2"></i>Studio</h5>
+      <p class="text-muted small mb-0">Branding values shown throughout the app.</p>
+    </div>
+    <form method="post" action="/settings">
+      <div class="settings-body">
+        <div class="settings-row">
+          <label class="settings-label">Studio name</label>
+          <input type="text" name="studio_name" class="form-control settings-input"
+                 value="{{ studio.studio_name }}" placeholder="Life in Frame" required>
+        </div>
+        <div class="settings-row">
+          <label class="settings-label">Subtitle / tagline</label>
+          <input type="text" name="studio_sub" class="form-control settings-input"
+                 value="{{ studio.studio_sub }}" placeholder="Studio Finance">
+        </div>
+        <div class="settings-row">
+          <label class="settings-label">Currency symbol</label>
+          <input type="text" name="currency_symbol" class="form-control settings-input"
+                 value="{{ studio.currency_symbol }}" placeholder="₹" maxlength="5">
+        </div>
+      </div>
+      <div class="settings-footer">
+        <button class="btn btn-dark icon-btn"><i class="bi bi-check2"></i>Save studio settings</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- ── Finance settings ───────────────────────────────────────── -->
+  <section class="settings-section">
+    <div class="settings-section-header">
+      <h5><i class="bi bi-cash-coin me-2"></i>Finance</h5>
+      <p class="text-muted small mb-0">Accounts-receivable and reminder behaviour.</p>
+    </div>
+    <form method="post" action="/settings">
+      <input type="hidden" name="studio_name"     value="{{ studio.studio_name }}">
+      <input type="hidden" name="studio_sub"      value="{{ studio.studio_sub }}">
+      <input type="hidden" name="currency_symbol" value="{{ studio.currency_symbol }}">
+      <div class="settings-body">
+        <div class="settings-row">
+          <label class="settings-label">
+            AR grace period
+            <span class="settings-hint">Days after shoot date before a balance becomes "overdue". 0 = due on shoot day.</span>
+          </label>
+          <input type="number" name="ar_grace_days" class="form-control settings-input"
+                 min="0" step="1" value="{{ studio.ar_grace_days }}" placeholder="0">
+        </div>
+        <div class="settings-row">
+          <label class="settings-label">
+            Reminder cadence
+            <span class="settings-hint">Minimum days between follow-up reminders shown on the Receivables page.</span>
+          </label>
+          <input type="number" name="reminder_cadence_days" class="form-control settings-input"
+                 min="1" step="1" value="{{ studio.reminder_cadence_days }}" placeholder="7">
+        </div>
+      </div>
+      <div class="settings-footer">
+        <button class="btn btn-dark icon-btn"><i class="bi bi-check2"></i>Save finance settings</button>
+      </div>
+    </form>
+  </section>
+
+</div>
+
+<!-- ── Recurring expense manager ──────────────────────────────── -->
+<section class="settings-section mt-4">
+  <div class="settings-section-header">
+    <h5><i class="bi bi-arrow-repeat me-2"></i>Recurring expenses</h5>
+    <p class="text-muted small mb-0">
+      Expenses marked "Repeat monthly" act as templates.
+      Use the button below to generate copies for a specific month.
+    </p>
+  </div>
+
+  {% if recurring %}
+  <div class="table-responsive">
+    <table class="table table-hover lif-table mb-0">
+      <thead>
+        <tr>
+          <th>Name / Category</th>
+          <th>Scope</th>
+          <th class="text-end">Amount</th>
+          <th class="text-center">Day of month</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in recurring %}
+        <tr class="clickable-row" data-href="/expenses/{{ e.id }}/edit">
+          <td>
+            {% if e.category %}
+              <span class="fw-semibold">{{ e.category.name }}</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+            {% if e.notes %}
+              <div class="text-muted small">{{ e.notes }}</div>
+            {% endif %}
+          </td>
+          <td><span class="text-muted small text-capitalize">{{ e.scope }}</span></td>
+          <td class="text-end fw-semibold">{{ e.amount | money }}</td>
+          <td class="text-center">
+            {% if e.recurring_day %}
+              <span class="badge bg-secondary">{{ e.recurring_day }}</span>
+            {% else %}
+              <span class="text-muted">1</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state py-4">
+    <i class="bi bi-arrow-repeat empty-state-icon"></i>
+    <p class="mb-1 fw-semibold">No recurring templates yet</p>
+    <p class="text-muted small">Create an expense and tick "Repeat monthly" to add one.</p>
+  </div>
+  {% endif %}
+
+  <!-- Generate for a month -->
+  <div class="settings-footer border-top mt-0 pt-3">
+    <form method="post" action="/settings/generate_recurring" class="d-flex align-items-end gap-3 flex-wrap">
+      <div>
+        <label class="form-label small mb-1">Year</label>
+        <input type="number" name="year" class="form-control form-control-sm" style="width:90px"
+               min="2020" max="2040" value="{{ today_year }}">
+      </div>
+      <div>
+        <label class="form-label small mb-1">Month</label>
+        <select name="month" class="form-select form-select-sm" style="width:110px">
+          {% for m in range(1,13) %}
+            <option value="{{ m }}" {{ 'selected' if m == today_month else '' }}>
+              {{ ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1] }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-outline-dark btn-sm icon-btn" {% if not recurring %}disabled{% endif %}>
+        <i class="bi bi-lightning-charge"></i>Generate recurring expenses
+      </button>
+    </form>
+  </div>
+</section>
+
+<!-- ── Audit log shortcut ──────────────────────────────────────── -->
+<div class="mt-4 p-3 rounded border d-flex align-items-center justify-content-between"
+     style="background: var(--lif-surface)">
+  <div>
+    <div class="fw-semibold"><i class="bi bi-clock-history me-2"></i>Audit log</div>
+    <div class="text-muted small">View recent create / delete operations across all entities.</div>
+  </div>
+  <a href="/audit" class="btn btn-sm btn-outline-secondary">Open audit log <i class="bi bi-arrow-right ms-1"></i></a>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll('.clickable-row[data-href]').forEach(row => {
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', () => { window.location.href = row.dataset.href; });
+  });
+</script>
+{% endblock %}

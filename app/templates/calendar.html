@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Calendar{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <div class="page-kicker">Studio schedule</div>
+    <h1 class="page-title">{{ month_name }} {{ year }}</h1>
+    <p class="page-subtitle">Monthly view of all booked and completed shoots.</p>
+  </div>
+  <div class="toolbar">
+    <a href="/calendar?year={{ prev[0] }}&month={{ prev[1] }}"
+       class="btn btn-outline-dark btn-sm icon-btn">
+      <i class="bi bi-chevron-left"></i>
+    </a>
+    <a href="/calendar" class="btn btn-dark btn-sm">Today</a>
+    <a href="/calendar?year={{ next[0] }}&month={{ next[1] }}"
+       class="btn btn-outline-dark btn-sm icon-btn">
+      <i class="bi bi-chevron-right"></i>
+    </a>
+    <a href="/events/new" class="btn btn-dark btn-sm icon-btn ms-2"><i class="bi bi-plus-lg"></i>New event</a>
+  </div>
+</header>
+
+<!-- Status filter chips (also acts as legend) -->
+<div class="cal-filter mb-3" id="calFilter" data-year="{{ year }}" data-month="{{ month }}">
+  {% for s in all_statuses %}
+    <button type="button"
+            class="cal-chip status-{{ s }} {% if s in active_statuses %}is-on{% endif %}"
+            data-status="{{ s }}">
+      <span class="cal-dot status-{{ s }}"></span>{{ s | capitalize }}
+    </button>
+  {% endfor %}
+  <a href="/calendar?year={{ year }}&month={{ month }}" class="cal-chip cal-chip-clear">All</a>
+</div>
+
+<div class="card p-0 overflow-hidden">
+  <div class="cal-grid">
+    <!-- Day-of-week header -->
+    <div class="cal-header">
+      <div>Mon</div><div>Tue</div><div>Wed</div>
+      <div>Thu</div><div>Fri</div>
+      <div class="text-muted">Sat</div><div class="text-muted">Sun</div>
+    </div>
+
+    <!-- Weeks -->
+    {% for week in weeks %}
+    <div class="cal-week">
+      {% for day in week %}
+        {% if day == 0 %}
+          <div class="cal-day cal-empty"></div>
+        {% else %}
+          {% set dstr = "%04d-%02d-%02d" | format(year, month, day) %}
+          {% set day_events = events_by_date.get(dstr, []) %}
+          <div class="cal-day {% if today.day == day and today.month == month and today.year == year %}cal-today{% endif %}">
+            <div class="cal-day-num">{{ day }}</div>
+            {% for ev in day_events %}
+              {% set tip = ev.name ~ (' · ' ~ ev.client_name if ev.client_name else '') ~ (' · ' ~ (ev.quoted_amount | money) if ev.quoted_amount else '') ~ ' · ' ~ ev.status.value %}
+              <a href="/events/{{ ev.id }}" class="cal-event-pill status-{{ ev.status.value }}"
+                 data-bs-toggle="tooltip" data-bs-placement="top" title="{{ tip }}">
+                {{ ev.name[:22] }}{% if ev.name|length > 22 %}…{% endif %}
+              </a>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Bootstrap tooltips on event pills
+  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+
+  // Calendar status filter — chips toggle URL ?statuses=...
+  (function() {
+    const bar = document.getElementById('calFilter');
+    if (!bar) return;
+    const year  = bar.dataset.year;
+    const month = bar.dataset.month;
+    bar.querySelectorAll('.cal-chip[data-status]').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const wasOn = chip.classList.contains('is-on');
+        chip.classList.toggle('is-on');
+        const active = [...bar.querySelectorAll('.cal-chip.is-on')].map(c => c.dataset.status);
+        // If none selected, treat as "all" (avoid an empty page)
+        const qs = active.length ? `&statuses=${active.join(',')}` : '';
+        window.location.href = `/calendar?year=${year}&month=${month}${qs}`;
+      });
+    });
+  })();
+</script>
+{% endblock %}

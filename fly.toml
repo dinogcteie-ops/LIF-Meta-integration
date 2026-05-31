@@ -1,0 +1,35 @@
+app = "lif-tracker"
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  CURRENCY = "INR"
+  DATABASE_URL = "sqlite:////data/lif.db"
+  PORT = "8000"
+
+[mounts]
+  source = "lif_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 25
+    soft_limit = 20
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+[[statics]]
+  guest_path = "/app/app/static"
+  url_prefix = "/static"

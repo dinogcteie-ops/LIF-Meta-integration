@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Leads{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <div class="page-kicker">Pipeline</div>
+    <h1 class="page-title">Leads</h1>
+    <p class="page-subtitle">Track enquiries from first contact through to booking.</p>
+  </div>
+  <div class="toolbar">
+    <a href="/leads/new" class="btn btn-dark icon-btn"><i class="bi bi-plus-lg"></i>New lead</a>
+  </div>
+</header>
+
+<!-- Funnel summary cards -->
+{% if funnel.new_count or funnel.quoted_count or funnel.won_count or funnel.lost_count %}
+<div class="funnel-cards mb-4">
+  <a href="/leads?status=new" class="funnel-card {{ 'active' if filter_status == 'new' else '' }}">
+    <div class="funnel-card-label">New</div>
+    <div class="funnel-card-value">{{ funnel.new_count }}</div>
+  </a>
+  <div class="funnel-arrow"><i class="bi bi-chevron-right"></i></div>
+  <a href="/leads?status=quoted" class="funnel-card {{ 'active' if filter_status == 'quoted' else '' }}">
+    <div class="funnel-card-label">Quoted</div>
+    <div class="funnel-card-value">{{ funnel.quoted_count }}</div>
+  </a>
+  <div class="funnel-arrow"><i class="bi bi-chevron-right"></i></div>
+  <a href="/leads?status=won" class="funnel-card funnel-won {{ 'active' if filter_status == 'won' else '' }}">
+    <div class="funnel-card-label">Won</div>
+    <div class="funnel-card-value">{{ funnel.won_count }}</div>
+  </a>
+  <div class="funnel-sep"></div>
+  <a href="/leads?status=lost" class="funnel-card funnel-lost {{ 'active' if filter_status == 'lost' else '' }}">
+    <div class="funnel-card-label">Lost</div>
+    <div class="funnel-card-value">{{ funnel.lost_count }}</div>
+  </a>
+  <a href="/leads?status=cold" class="funnel-card funnel-cold {{ 'active' if filter_status == 'cold' else '' }}">
+    <div class="funnel-card-label">Cold</div>
+    <div class="funnel-card-value">{{ funnel.cold_count }}</div>
+  </a>
+  {% if funnel.total_active %}
+  <div class="funnel-stat ms-auto">
+    <div class="funnel-stat-label">Conversion</div>
+    <div class="funnel-stat-value">{{ funnel.conversion_rate }}%</div>
+  </div>
+  <div class="funnel-stat">
+    <div class="funnel-stat-label">Pipeline value</div>
+    <div class="funnel-stat-value">{{ funnel.total_pipeline_value | money }}</div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Status filter pills -->
+<div class="filter-bar mb-4">
+  <a href="/leads" class="filter-pill {{ 'active' if not filter_status else '' }}">All</a>
+  {% for s in statuses %}
+    <a href="/leads?status={{ s.value }}"
+       class="filter-pill lead-status-{{ s.value }} {{ 'active' if filter_status == s.value else '' }}">
+      {{ s.value | capitalize }}
+    </a>
+  {% endfor %}
+</div>
+
+{% if leads %}
+<div class="card lif-card">
+  <div class="table-responsive">
+    <table class="table table-hover lif-table mb-0">
+      <thead>
+        <tr>
+          <th>Client</th>
+          <th>Event type</th>
+          <th>Tentative date</th>
+          <th>Source</th>
+          <th>Status</th>
+          <th>Follow-up</th>
+          <th class="text-end">Value</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for lead in leads %}
+        <tr class="clickable-row" data-href="/leads/{{ lead.id }}">
+          <td>
+            <div class="fw-semibold">{{ lead.client_name }}</div>
+            {% if lead.contact %}<div class="text-muted small">{{ lead.contact }}</div>{% endif %}
+          </td>
+          <td class="text-muted small">{{ lead.event_type or '—' }}</td>
+          <td class="text-muted small">{{ lead.tentative_date or '—' }}</td>
+          <td class="text-muted small">{{ lead.source or '—' }}</td>
+          <td>
+            <span class="lead-status-badge lead-status-{{ lead.status }}">{{ lead.status }}</span>
+          </td>
+          <td class="small">
+            {% if lead.followup_date %}
+              <div class="text-muted">{{ lead.followup_date }}</div>
+            {% endif %}
+            <span class="lead-status-badge lead-status-{{ lead.followup_status }}">{{ lead.followup_status }}</span>
+          </td>
+          <td class="text-end fw-semibold">
+            {% if lead.quoted_amount %}{{ lead.quoted_amount | money }}{% else %}—{% endif %}
+          </td>
+          <td class="text-end pe-3">
+            <a href="/leads/{{ lead.id }}" class="action-link">Open</a>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="empty-state">
+  <i class="bi bi-funnel empty-state-icon"></i>
+  <p class="mb-1 fw-semibold">No leads{% if filter_status %} with status "{{ filter_status }}"{% endif %}</p>
+  <p class="text-muted small">
+    {% if filter_status %}<a href="/leads">Clear filter</a> or {% endif %}
+    <a href="/leads/new">add a new lead</a>.
+  </p>
+</div>
+{% endif %}
+
+{% if sources %}
+<div class="card lif-card mt-4">
+  <div class="section-header">
+    <h5 class="section-title">Conversion by source</h5>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover lif-table mb-0">
+      <thead><tr><th>Source</th><th class="text-center">Total</th><th class="text-center">Won</th><th class="text-center">Rate</th><th class="text-end">Won value</th></tr></thead>
+      <tbody>
+      {% for s in sources %}
+        <tr>
+          <td>{{ s.source }}</td>
+          <td class="text-center">{{ s.total }}</td>
+          <td class="text-center text-success fw-semibold">{{ s.won }}</td>
+          <td class="text-center">
+            <span class="profit-pct-badge {{ 'pct-positive' if s.pct >= 40 else ('pct-ok' if s.pct >= 0 else 'pct-negative') }}">
+              {{ s.pct | int }}%
+            </span>
+          </td>
+          <td class="text-end">{{ s.value | money }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll('.clickable-row[data-href]').forEach(row => {
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', e => {
+      if (!e.target.closest('a, button')) window.location.href = row.dataset.href;
+    });
+  });
+</script>
+{% endblock %}

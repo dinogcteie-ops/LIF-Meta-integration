@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}{{ payee.name }}{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <div class="page-kicker">Payee</div>
+    <h1 class="page-title">{{ payee.name }}</h1>
+    <div class="d-flex flex-wrap gap-2 mt-2">
+      <span class="payee-type-badge payee-{{ payee.payee_type }}">{{ payee.payee_type|capitalize }}</span>
+      {% if payee.phone %}
+        <span class="contact-chip"><i class="bi bi-telephone"></i> {{ payee.phone }}</span>
+      {% endif %}
+      {% if payee.email %}
+        <span class="contact-chip"><i class="bi bi-envelope"></i> {{ payee.email }}</span>
+      {% endif %}
+    </div>
+  </div>
+  <div class="toolbar">
+    <a href="/payees/{{ payee.id }}/edit" class="btn btn-outline-dark icon-btn">
+      <i class="bi bi-pencil"></i>Edit
+    </a>
+    <form method="post" action="/payees/{{ payee.id }}/delete"
+          onsubmit="return confirm('Delete this payee? Their expense records will not be deleted.')">
+      <button type="submit" class="btn btn-outline-danger btn-sm">
+        <i class="bi bi-trash"></i> Delete
+      </button>
+    </form>
+  </div>
+</header>
+
+<!-- KPI strip -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card stat-card h-100">
+      <div class="card-body">
+        <div class="stat-label">Expense entries</div>
+        <div class="stat-value">{{ expenses|length }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card h-100" style="--accent:var(--lif-red);">
+      <div class="card-body">
+        <div class="stat-label">Total invoiced</div>
+        <div class="stat-value text-danger">{{ total_spent|money }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card h-100" style="--accent:var(--lif-green);">
+      <div class="card-body">
+        <div class="stat-label">Total paid out</div>
+        <div class="stat-value text-success">{{ total_paid|money }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card h-100" style="--accent:var(--lif-amber);">
+      <div class="card-body">
+        <div class="stat-label">Outstanding</div>
+        <div class="stat-value {{ 'text-warning' if total_pending > 0 else 'text-muted' }}">
+          {{ total_pending|money }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if payee.notes %}
+<div class="alert alert-info mb-4">
+  <i class="bi bi-sticky"></i> {{ payee.notes }}
+</div>
+{% endif %}
+
+<!-- Expense history -->
+<div class="card section-card">
+  <div class="section-header">
+    <h5 class="section-title">Expense history</h5>
+    <a href="/expenses/new" class="btn btn-sm btn-outline-dark icon-btn">
+      <i class="bi bi-plus-lg"></i>New expense
+    </a>
+  </div>
+  {% if expenses %}
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead>
+        <tr>
+          <th class="ps-4">Date</th>
+          <th>Category</th>
+          <th>Event</th>
+          <th>Status</th>
+          <th class="text-end">Amount</th>
+          <th class="text-end pe-4">Paid</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for e in expenses %}
+        <tr class="row-clickable" onclick="location.href='/expenses/{{ e.id }}/edit'">
+          <td class="ps-4 text-muted small">{{ e.date }}</td>
+          <td>{{ e.category.name if e.category else '—' }}</td>
+          <td>
+            {% if e.event %}
+              <a href="/events/{{ e.event.id }}" class="event-link small">{{ e.event.name }}</a>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge {% if e.payment_status.value == 'paid' %}bg-success{% elif e.payment_status.value == 'partial' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+              {{ e.payment_status.value }}
+            </span>
+          </td>
+          <td class="text-end money text-danger">{{ e.amount|money }}</td>
+          <td class="text-end pe-4 money">
+            {% if e.payment_status.value == 'paid' %}
+              {{ e.amount|money }}
+            {% elif e.payment_status.value == 'partial' %}
+              {{ e.paid_amount|money }}
+            {% else %}
+              —
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="totals-row">
+          <td class="ps-4 fw-bold" colspan="4">Totals</td>
+          <td class="text-end money fw-bold text-danger">{{ total_spent|money }}</td>
+          <td class="text-end pe-4 money fw-bold">{{ total_paid|money }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  {% else %}
+    <div class="empty-state">No expense records linked to this payee yet.</div>
+  {% endif %}
+</div>
+{% endblock %}

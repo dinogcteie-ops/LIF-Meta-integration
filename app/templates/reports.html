@@ -1,0 +1,386 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <div class="page-kicker">Reporting</div>
+    <h1 class="page-title">Reports</h1>
+    <p class="page-subtitle">Monthly, quarterly, and per-event profitability with local exports.</p>
+  </div>
+  <div class="toolbar">
+    <a href="/export/xlsx" class="btn btn-outline-dark btn-sm icon-btn"><i class="bi bi-download"></i>XLSX</a>
+    <a href="/export/csv?kind=summary" class="btn btn-outline-dark btn-sm icon-btn"><i class="bi bi-download"></i>Summary CSV</a>
+    <a href="/export/csv?kind=events" class="btn btn-outline-dark btn-sm icon-btn"><i class="bi bi-download"></i>Events CSV</a>
+    <a href="/export/csv?kind=expenses" class="btn btn-outline-dark btn-sm icon-btn"><i class="bi bi-download"></i>Expenses CSV</a>
+    <form method="post" action="/export/sheets" class="d-inline"
+          onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').innerHTML='<i class=&quot;bi bi-cloud-arrow-up&quot;></i>Pushing';">
+      <button class="btn btn-gold btn-sm icon-btn"><i class="bi bi-cloud-arrow-up"></i>Push to Google Sheets</button>
+    </form>
+    <form method="post" action="/export/drive" class="d-inline"
+          onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').innerHTML='<i class=&quot;bi bi-folder-symlink&quot;></i>Uploading';">
+      <button class="btn btn-gold btn-sm icon-btn"><i class="bi bi-folder-symlink"></i>Upload Excel to Drive</button>
+    </form>
+  </div>
+</header>
+
+<div class="card mb-4 chart-panel">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+      <div>
+        <h5 class="mb-1">Trend and projection</h5>
+        <div class="text-muted small">Last 6 months actual / next 3 months projected from rolling average.</div>
+      </div>
+    </div>
+    <div class="chart-frame">
+      <canvas id="trendChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ── Sprint 6: Budget vs actual ──────────────────────────────────────── -->
+{% if budgets %}
+<div class="card section-card mb-4">
+  <div class="section-header">
+    <div>
+      <h5 class="section-title">Budget vs actual — {{ budget_month_label }}</h5>
+      <div class="text-muted small mt-1">
+        Set monthly targets per category on the
+        <a href="/categories" class="action-link">Categories page</a>.
+      </div>
+    </div>
+    {% set over_count = budgets | selectattr('over_budget') | list | length %}
+    {% if over_count %}
+      <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+        <i class="bi bi-exclamation-triangle"></i> {{ over_count }} over budget
+      </span>
+    {% endif %}
+  </div>
+  <div class="card-body pt-3">
+    <div class="row g-3">
+      {% for b in budgets %}
+        <div class="col-md-6 col-xl-4">
+          <div class="budget-card {% if b.over_budget %}over-budget{% elif b.has_budget and b.pct_used >= 80 %}near-budget{% endif %}">
+            <div class="d-flex justify-content-between align-items-baseline mb-1">
+              <div class="budget-card-name">
+                {{ b.category.name }}
+                <span class="text-muted small text-capitalize">· {{ b.category.scope.value }}</span>
+              </div>
+              {% if b.has_budget %}
+                <div class="budget-card-pct {% if b.over_budget %}over{% elif b.pct_used >= 80 %}near{% endif %}">
+                  {{ b.pct_used }}%
+                </div>
+              {% endif %}
+            </div>
+            <div class="budget-bar-track">
+              {% if b.has_budget %}
+                {% set bar_w = b.pct_used if b.pct_used <= 100 else 100 %}
+                <div class="budget-bar-fill {% if b.over_budget %}fill-over{% elif b.pct_used >= 80 %}fill-near{% else %}fill-ok{% endif %}"
+                     style="width: {{ bar_w }}%"></div>
+              {% else %}
+                <div class="budget-bar-fill fill-no-budget" style="width: 100%"></div>
+              {% endif %}
+            </div>
+            <div class="d-flex justify-content-between align-items-baseline mt-2 budget-card-meta">
+              <span>
+                {{ b.actual | money }}
+                {% if b.has_budget %}
+                  <span class="text-muted">of {{ b.budget | money }}</span>
+                {% else %}
+                  <span class="text-muted small">no budget set</span>
+                {% endif %}
+              </span>
+              {% if b.has_budget %}
+                <span class="{{ 'text-danger fw-semibold' if b.over_budget else 'text-muted' }}">
+                  {% if b.over_budget %}
+                    +{{ (b.actual - b.budget) | money }} over
+                  {% else %}
+                    {{ b.remaining | money }} left
+                  {% endif %}
+                </span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card section-card h-100">
+      <div class="section-header">
+        <h5 class="section-title">Monthly profit</h5>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead><tr><th class="ps-4">Period</th><th class="text-end">Income</th><th class="text-end">Expense</th><th class="text-end pe-4">Profit</th></tr></thead>
+          <tbody>
+          {% for r in history %}
+            <tr>
+              <td class="ps-4 fw-bold">{{ r.period }}</td>
+              <td class="text-end money">{{ r.income|money }}</td>
+              <td class="text-end money">{{ r.expense|money }}</td>
+              <td class="text-end pe-4 money fw-bold {{ 'text-success' if r.profit >= 0 else 'text-danger' }}">{{ r.profit|money }}</td>
+            </tr>
+          {% endfor %}
+          {% for r in projection %}
+            <tr style="opacity:.68;">
+              <td class="ps-4">{{ r.period }} <span class="badge bg-secondary">proj.</span></td>
+              <td class="text-end money">{{ r.income|money }}</td>
+              <td class="text-end money">{{ r.expense|money }}</td>
+              <td class="text-end pe-4 money">{{ r.profit|money }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card section-card h-100">
+      <div class="section-header">
+        <h5 class="section-title">Quarterly profit</h5>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead><tr><th class="ps-4">Quarter</th><th class="text-end">Income</th><th class="text-end">Expense</th><th class="text-end pe-4">Profit</th></tr></thead>
+          <tbody>
+          {% for r in quarters %}
+            <tr>
+              <td class="ps-4 fw-bold">{{ r.period }}</td>
+              <td class="text-end money">{{ r.income|money }}</td>
+              <td class="text-end money">{{ r.expense|money }}</td>
+              <td class="text-end pe-4 money fw-bold {{ 'text-success' if r.profit >= 0 else 'text-danger' }}">{{ r.profit|money }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <div class="card section-card">
+      <div class="section-header">
+        <h5 class="section-title">Per-event profit consolidation</h5>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th class="ps-4">Event</th><th>Date</th><th>Status</th>
+              <th class="text-end">Quoted</th>
+              <th class="text-end">Income</th>
+              <th class="text-end">Expense</th>
+              <th class="text-end pe-4">Profit</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for r in events %}
+            <tr>
+              <td class="ps-4"><a href="/events/{{ r.event.id }}" class="event-link">{{ r.event.name }}</a></td>
+              <td class="text-muted small">{{ r.event.event_date or '-' }}</td>
+              <td><span class="badge bg-secondary">{{ r.event.status.value }}</span></td>
+              <td class="text-end money text-muted">{{ r.event.quoted_amount|money }}</td>
+              <td class="text-end money">{{ r.income|money }}</td>
+              <td class="text-end money">{{ r.expense|money }}</td>
+              <td class="text-end pe-4 money fw-bold {{ 'text-success' if r.profit >= 0 else 'text-danger' }}">{{ r.profit|money }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="7" class="empty-state">No events yet.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase 2: Top clients + top payees -->
+  <div class="col-lg-6">
+    <div class="card section-card h-100">
+      <div class="section-header">
+        <h5 class="section-title">Top clients by revenue</h5>
+        <a href="/clients" class="btn btn-sm btn-outline-dark icon-btn">
+          <i class="bi bi-people"></i>All clients
+        </a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th class="ps-4">Client</th>
+              <th class="text-end">Events</th>
+              <th class="text-end">Billed</th>
+              <th class="text-end pe-4">Pending</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for c in top_clients %}
+            <tr>
+              <td class="ps-4">
+                {% if c.client_id %}
+                  <a href="/clients/{{ c.client_id }}" class="event-link">{{ c.name }}</a>
+                {% else %}
+                  {{ c.name }}
+                {% endif %}
+              </td>
+              <td class="text-end text-muted small">{{ c.event_count }}</td>
+              <td class="text-end money fw-semibold">{{ c.total_quoted|money }}</td>
+              <td class="text-end pe-4 money">
+                {% if c.total_pending > 0 %}
+                  <span class="pending-badge">{{ c.total_pending|money }}</span>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="4" class="empty-state">No event data yet.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card section-card h-100">
+      <div class="section-header">
+        <h5 class="section-title">Top payees by spend</h5>
+        <a href="/payees" class="btn btn-sm btn-outline-dark icon-btn">
+          <i class="bi bi-person-badge"></i>All payees
+        </a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th class="ps-4">Payee</th>
+              <th>Type</th>
+              <th class="text-end">Expenses</th>
+              <th class="text-end pe-4">Total paid</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for p in top_payees %}
+            <tr>
+              <td class="ps-4">
+                {% if p.payee_id %}
+                  <a href="/payees/{{ p.payee_id }}" class="event-link">{{ p.name }}</a>
+                {% else %}
+                  {{ p.name }}
+                {% endif %}
+              </td>
+              <td>
+                <span class="payee-type-badge payee-{{ p.payee_type }}">{{ p.payee_type }}</span>
+              </td>
+              <td class="text-end text-muted small">{{ p.expense_count }}</td>
+              <td class="text-end pe-4 money fw-semibold text-danger">{{ p.total_spent|money }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="4" class="empty-state">No expense data yet.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Expense breakdown by category scope -->
+  <div class="col-12">
+    <div class="card section-card">
+      <div class="section-header">
+        <h5 class="section-title">Expense breakdown</h5>
+        <div class="text-muted small">Total amounts spent per category, grouped by type.</div>
+      </div>
+      <div class="row g-0">
+        <!-- Marketing -->
+        <div class="col-lg-4 breakdown-col">
+          <div class="breakdown-col-header">
+            <i class="bi bi-megaphone"></i> Marketing
+          </div>
+          {% for name, amt in breakdown.marketing %}
+            <div class="breakdown-row">
+              <span class="breakdown-name">{{ name }}</span>
+              <span class="money breakdown-amt">{{ amt|money }}</span>
+            </div>
+          {% else %}
+            <div class="text-muted small px-4 py-2">No marketing expenses.</div>
+          {% endfor %}
+        </div>
+        <!-- Other Company -->
+        <div class="col-lg-4 breakdown-col">
+          <div class="breakdown-col-header">
+            <i class="bi bi-building"></i> Company expenses
+          </div>
+          {% for name, amt in breakdown.company_other %}
+            <div class="breakdown-row">
+              <span class="breakdown-name">{{ name }}</span>
+              <span class="money breakdown-amt">{{ amt|money }}</span>
+            </div>
+          {% else %}
+            <div class="text-muted small px-4 py-2">No other company expenses.</div>
+          {% endfor %}
+        </div>
+        <!-- Founder -->
+        <div class="col-lg-4 breakdown-col">
+          <div class="breakdown-col-header">
+            <i class="bi bi-person-circle"></i> Founder expenses
+          </div>
+          {% for name, amt in breakdown.founder %}
+            <div class="breakdown-row">
+              <span class="breakdown-name">{{ name }}</span>
+              <span class="money breakdown-amt">{{ amt|money }}</span>
+            </div>
+          {% else %}
+            <div class="text-muted small px-4 py-2">No founder expenses.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const chart = {{ chart|tojson }};
+  const gold = '#c9a84c', green = '#2f7d4b', red = '#b43d3d';
+  const ctx = document.getElementById('trendChart');
+  if (ctx && window.Chart) {
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: chart.labels,
+        datasets: [
+          { label: 'Income', data: chart.income, borderColor: green, backgroundColor: 'rgba(47,125,75,.08)', tension: 0.32, pointRadius: 3,
+            segment: { borderDash: c => c.p0DataIndex >= chart.history_len - 1 ? [6,4] : undefined } },
+          { label: 'Expense', data: chart.expense, borderColor: red, backgroundColor: 'rgba(180,61,61,.08)', tension: 0.32, pointRadius: 3,
+            segment: { borderDash: c => c.p0DataIndex >= chart.history_len - 1 ? [6,4] : undefined } },
+          { label: 'Profit', data: chart.profit, borderColor: gold, backgroundColor: 'rgba(201,168,76,.12)', tension: 0.32, pointRadius: 3,
+            segment: { borderDash: c => c.p0DataIndex >= chart.history_len - 1 ? [6,4] : undefined } },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } },
+          tooltip: {
+            callbacks: {
+              label: item => `${item.dataset.label}: Rs ${Number(item.parsed.y).toLocaleString('en-IN')}`
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#736b60' } },
+          y: { grid: { color: '#e3d8c9' }, ticks: { color: '#736b60' } },
+        },
+      },
+    });
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Meta Ads{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <div class="page-kicker">Marketing</div>
+    <h1 class="page-title">Meta Ads</h1>
+    <p class="page-subtitle">Facebook &amp; Instagram campaign performance and lead capture.</p>
+  </div>
+  <div class="toolbar">
+    <form action="/meta/refresh" method="post">
+      <button type="submit" class="btn btn-dark icon-btn"><i class="bi bi-arrow-clockwise"></i>Refresh metrics</button>
+    </form>
+  </div>
+</header>
+
+{% if not configured %}
+<div class="alert alert-info">
+  <i class="bi bi-info-circle me-2"></i>
+  No Meta metrics yet. Set <code>META_AD_ACCOUNT_ID</code> and <code>META_PAGE_ACCESS_TOKEN</code>,
+  then click <strong>Refresh metrics</strong>. Lead-form capture works independently via the webhook.
+</div>
+{% endif %}
+
+<div class="kpi-grid">
+  <div class="kpi-card">
+    <div class="kpi-card-header"><div class="kpi-card-icon lif-blue"><i class="bi bi-cash-stack"></i></div>
+      <div class="kpi-card-label">Total Spend</div></div>
+    <div class="kpi-card-value">{{ currency }} {{ "{:,.0f}".format(totals.spend) }}</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-card-header"><div class="kpi-card-icon lif-gold"><i class="bi bi-eye"></i></div>
+      <div class="kpi-card-label">Impressions</div></div>
+    <div class="kpi-card-value">{{ "{:,}".format(totals.impressions) }}</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-card-header"><div class="kpi-card-icon lif-green"><i class="bi bi-funnel"></i></div>
+      <div class="kpi-card-label">Leads (Meta)</div></div>
+    <div class="kpi-card-value">{{ totals.leads }}</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-card-header"><div class="kpi-card-icon lif-blue"><i class="bi bi-cash-coin"></i></div>
+      <div class="kpi-card-label">Cost / Lead</div></div>
+    <div class="kpi-card-value">{{ currency }} {{ "{:,.0f}".format(totals.cpl) }}</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-card-header"><div class="kpi-card-icon lif-gold"><i class="bi bi-people"></i></div>
+      <div class="kpi-card-label">Leads in pipeline</div></div>
+    <div class="kpi-card-value">{{ meta_lead_count }}</div>
+  </div>
+</div>
+
+<div class="row g-3 mt-1">
+  <div class="col-lg-6">
+    <div class="card"><div class="card-body">
+      <h2 class="section-title">Spend over time</h2>
+      <canvas id="metaSpendChart" height="140"></canvas>
+    </div></div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card"><div class="card-body">
+      <h2 class="section-title">Leads over time</h2>
+      <canvas id="metaLeadsChart" height="140"></canvas>
+    </div></div>
+  </div>
+</div>
+
+<div class="card mt-3"><div class="card-body">
+  <h2 class="section-title">Campaigns</h2>
+  <div class="table-responsive">
+    <table class="table lif-table align-middle">
+      <thead><tr>
+        <th>Campaign</th><th class="text-end">Spend</th><th class="text-end">Impressions</th>
+        <th class="text-end">Reach</th><th class="text-end">Clicks</th>
+        <th class="text-end">Leads</th><th class="text-end">CPL</th>
+      </tr></thead>
+      <tbody>
+        {% for c in campaigns %}
+        <tr>
+          <td>{{ c.campaign_name }}</td>
+          <td class="text-end">{{ currency }} {{ "{:,.0f}".format(c.spend) }}</td>
+          <td class="text-end">{{ "{:,}".format(c.impressions) }}</td>
+          <td class="text-end">{{ "{:,}".format(c.reach) }}</td>
+          <td class="text-end">{{ "{:,}".format(c.clicks) }}</td>
+          <td class="text-end">{{ c.leads }}</td>
+          <td class="text-end">{{ currency }} {{ "{:,.0f}".format(c.cpl) }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="text-center text-muted py-4">No campaign data yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if last_synced %}<p class="text-muted small mt-2 mb-0">Last synced: {{ last_synced }}</p>{% endif %}
+</div></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const metaLabels = {{ chart_labels|tojson }};
+  const spendData  = {{ chart_spend|tojson }};
+  const leadsData  = {{ chart_leads|tojson }};
+  const baseOpts = { responsive: true, plugins: { legend: { display: false } },
+                     scales: { y: { beginAtZero: true } } };
+  if (window.Chart && document.getElementById('metaSpendChart')) {
+    new Chart(document.getElementById('metaSpendChart'), {
+      type: 'line',
+      data: { labels: metaLabels, datasets: [{ data: spendData, borderColor: '#2b7de9',
+              backgroundColor: 'rgba(43,125,233,.12)', fill: true, tension: .3 }] },
+      options: baseOpts
+    });
+    new Chart(document.getElementById('metaLeadsChart'), {
+      type: 'bar',
+      data: { labels: metaLabels, datasets: [{ data: leadsData, backgroundColor: '#15803d' }] },
+      options: baseOpts
+    });
+  }
+</script>
+{% endblock %}

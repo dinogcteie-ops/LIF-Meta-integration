@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Payables{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <div class="page-kicker">Cash flow</div>
+    <h1 class="page-title">Payables</h1>
+    <p class="page-subtitle">What we owe vendors, freelancers, and crew — grouped by event status.</p>
+  </div>
+  <div class="toolbar">
+    <a href="/receivables" class="btn btn-outline-dark btn-sm icon-btn"><i class="bi bi-cash-coin"></i>Receivables</a>
+    <a href="/expenses/new" class="btn btn-dark btn-sm icon-btn"><i class="bi bi-plus-lg"></i>New expense</a>
+  </div>
+</header>
+
+<!-- Aging bucket pill cards -->
+<div class="aging-grid mb-4">
+  <a href="/payables" class="aging-pill {{ 'aging-pill-active' if not active_bucket else '' }}">
+    <div class="aging-pill-label">All</div>
+    <div class="aging-pill-amount">{{ totals.total_amount|money }}</div>
+    <div class="aging-pill-count">{{ totals.total_count }} item{{ 's' if totals.total_count != 1 else '' }}</div>
+  </a>
+  <a href="/payables?bucket=not_due" class="aging-pill aging-not-due {{ 'aging-pill-active' if active_bucket == 'not_due' else '' }}">
+    <div class="aging-pill-label"><i class="bi bi-clock"></i> Not yet due</div>
+    <div class="aging-pill-amount">{{ totals.not_due_amount|money }}</div>
+    <div class="aging-pill-count">{{ totals.not_due_count }}</div>
+  </a>
+  <a href="/payables?bucket=0_30" class="aging-pill aging-0-30 {{ 'aging-pill-active' if active_bucket == '0_30' else '' }}">
+    <div class="aging-pill-label"><i class="bi bi-hourglass-split"></i> 0–30 days overdue</div>
+    <div class="aging-pill-amount">{{ totals.bucket_0_30_amount|money }}</div>
+    <div class="aging-pill-count">{{ totals.bucket_0_30_count }}</div>
+  </a>
+  <a href="/payables?bucket=31_60" class="aging-pill aging-31-60 {{ 'aging-pill-active' if active_bucket == '31_60' else '' }}">
+    <div class="aging-pill-label"><i class="bi bi-exclamation-triangle"></i> 31–60 days</div>
+    <div class="aging-pill-amount">{{ totals.bucket_31_60_amount|money }}</div>
+    <div class="aging-pill-count">{{ totals.bucket_31_60_count }}</div>
+  </a>
+  <a href="/payables?bucket=60_plus" class="aging-pill aging-60-plus {{ 'aging-pill-active' if active_bucket == '60_plus' else '' }}">
+    <div class="aging-pill-label"><i class="bi bi-exclamation-octagon"></i> 60+ days</div>
+    <div class="aging-pill-amount">{{ totals.bucket_60_plus_amount|money }}</div>
+    <div class="aging-pill-count">{{ totals.bucket_60_plus_count }}</div>
+  </a>
+</div>
+
+{# ── Macro: reusable expense-rows table ───────────────────────────────────── #}
+{% macro expense_table(rows, show_cancelled_note=false) %}
+<div class="table-responsive">
+  <table class="table table-hover align-middle mb-0">
+    <thead>
+      <tr>
+        <th class="ps-4">Vendor / Payee</th>
+        <th>Date</th>
+        <th>Category</th>
+        <th>Event</th>
+        <th class="text-end">Amount</th>
+        <th class="text-end">Paid</th>
+        <th class="text-end">Pending</th>
+        <th>Aging</th>
+        <th class="pe-4 text-end">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td class="ps-4 fw-semibold">{{ r.payee_label }}</td>
+        <td class="text-muted small">{{ r.expense.date or '—' }}</td>
+        <td>
+          {% if r.expense.category %}
+            <span class="type-chip">{{ r.expense.category.name }}</span>
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+        <td>
+          {% set ev = r.expense.event if r.expense.event_id else none %}
+          {% if ev %}
+            <a href="/events/{{ ev.id }}" class="event-link">{{ ev.name }}</a>
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+        <td class="text-end money">{{ r.expense.amount|money }}</td>
+        <td class="text-end money">{{ r.expense.paid_amount|money }}</td>
+        <td class="text-end money fw-bold">
+          <span class="pending-badge">{{ r.pending|money }}</span>
+        </td>
+        <td>
+          {% if show_cancelled_note %}
+            <span class="badge bg-secondary bg-opacity-10 text-secondary border" style="font-size:.75rem">Cancelled</span>
+          {% elif r.days_overdue < 0 %}
+            <span class="aging-chip aging-not-due">In {{ -r.days_overdue }}d</span>
+          {% elif r.days_overdue == 0 %}
+            <span class="aging-chip aging-0-30">Due today</span>
+          {% elif r.days_overdue <= 30 %}
+            <span class="aging-chip aging-0-30">{{ r.days_overdue }}d late</span>
+          {% elif r.days_overdue <= 60 %}
+            <span class="aging-chip aging-31-60">{{ r.days_overdue }}d late</span>
+          {% else %}
+            <span class="aging-chip aging-60-plus">{{ r.days_overdue }}d late</span>
+          {% endif %}
+        </td>
+        <td class="pe-4 text-end">
+          <a href="/expenses/{{ r.expense.id }}/edit" class="btn btn-sm btn-outline-dark icon-btn">
+            <i class="bi bi-pencil"></i> Update
+          </a>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endmacro %}
+
+{# ── Section macro: collapsible card per group ────────────────────────────── #}
+{% macro status_section(section_id, icon, label, icon_class, rows, pending_total, total_count, show_cancelled_note=false) %}
+<div class="card section-card mb-3">
+  <div class="d-flex justify-content-between align-items-center px-4 py-3"
+       style="cursor:pointer;"
+       data-bs-toggle="collapse" data-bs-target="#{{ section_id }}"
+       aria-expanded="true" aria-controls="{{ section_id }}">
+    <div class="d-flex align-items-center gap-3">
+      <span class="receivables-status-icon {{ icon_class }}">
+        <i class="bi {{ icon }}"></i>
+      </span>
+      <div>
+        <div class="fw-semibold">{{ label }}</div>
+        <div class="text-muted small">
+          {% if active_bucket and not show_cancelled_note and rows|length != total_count %}
+            {{ rows|length }} of {{ total_count }} item{{ 's' if total_count != 1 else '' }} in this bucket
+          {% else %}
+            {{ total_count }} item{{ 's' if total_count != 1 else '' }}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <div class="text-end">
+        <span class="money fw-bold {% if show_cancelled_note %}text-muted{% else %}text-danger{% endif %}">
+          {{ pending_total|money }}
+        </span>
+        {% if active_bucket and not show_cancelled_note and rows|length != total_count %}
+          <div class="text-muted" style="font-size:.72rem">group total</div>
+        {% endif %}
+      </div>
+      <i class="bi bi-chevron-down text-muted" style="font-size:.75rem"></i>
+    </div>
+  </div>
+  <div class="collapse show" id="{{ section_id }}">
+    {% if rows %}
+      {{ expense_table(rows, show_cancelled_note) }}
+    {% elif total_count > 0 %}
+      <div class="px-4 pb-3 text-muted small">
+        No items in this bucket.
+        <a href="/payables" class="text-muted">Clear filter</a> to see all {{ total_count }} item{{ 's' if total_count != 1 else '' }}.
+      </div>
+    {% else %}
+      <div class="px-4 pb-3 text-muted small">No pending balance.</div>
+    {% endif %}
+  </div>
+</div>
+{% endmacro %}
+
+{# ── Four status sections ──────────────────────────────────────────────────── #}
+{% set has_any = count_booked or count_ongoing or count_cancelled or count_overhead %}
+
+{% if has_any %}
+  {{ status_section('paySecBooked',    'bi-bookmark-check', 'Booked Events',                 'rec-status-booked',    rows_booked,    pending_booked,    count_booked) }}
+  {{ status_section('paySecOngoing',   'bi-camera-reels',   'Ongoing & Completed',           'rec-status-ongoing',   rows_ongoing,   pending_ongoing,   count_ongoing) }}
+  {{ status_section('paySecCancelled', 'bi-x-circle',       'Cancelled Events',              'rec-status-cancelled', rows_cancelled, pending_cancelled, count_cancelled, show_cancelled_note=true) }}
+  {{ status_section('paySecOverhead',  'bi-building',       'Overhead (Company / Personal)', 'rec-status-overhead',  rows_overhead,  pending_overhead,  count_overhead) }}
+{% else %}
+  <div class="empty-state">
+    {% if active_bucket %}
+      No items in this bucket. <a href="/payables">View all</a>.
+    {% else %}
+      Nothing pending — all vendors paid up.
+    {% endif %}
+  </div>
+{% endif %}
+
+{% endblock %}

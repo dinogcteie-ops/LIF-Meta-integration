@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Clients{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <div class="page-kicker">Directory</div>
+    <h1 class="page-title">Clients</h1>
+    <p class="page-subtitle">All client contacts with lifetime booking value and collection summary.</p>
+  </div>
+  <div class="toolbar">
+    <input id="clientSearch" type="search" placeholder="Search clients..."
+           class="form-control form-control-sm" style="width:min(220px,100%);"
+           oninput="filterClients(this.value)">
+    <a href="/clients/new" class="btn btn-dark icon-btn"><i class="bi bi-plus-lg"></i>New client</a>
+  </div>
+</header>
+
+{% if clients %}
+<div class="card section-card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th class="ps-4">Name</th>
+          <th>Phone</th>
+          <th>Email</th>
+          <th class="text-end">Events</th>
+          <th class="text-end">Total billed</th>
+          <th class="text-end">Collected</th>
+          <th class="text-end pe-4">Pending</th>
+        </tr>
+      </thead>
+      <tbody id="clientsBody">
+      {% for c in clients %}
+        {% set s = stats_by_cid.get(c.id) %}
+        <tr class="row-clickable client-row" onclick="location.href='/clients/{{ c.id }}'">
+          <td class="ps-4">
+            <a href="/clients/{{ c.id }}" class="event-link">{{ c.name }}</a>
+            {% if c.notes %}<div class="client-name text-truncate" style="max-width:260px;">{{ c.notes }}</div>{% endif %}
+          </td>
+          <td class="text-muted small">{{ c.phone or '—' }}</td>
+          <td class="text-muted small">{{ c.email or '—' }}</td>
+          <td class="text-end">{{ s.event_count if s else 0 }}</td>
+          <td class="text-end money fw-semibold">{{ (s.total_quoted if s else 0)|money }}</td>
+          <td class="text-end money">{{ (s.total_received if s else 0)|money }}</td>
+          <td class="text-end pe-4 money">
+            {% if s and s.total_pending > 0 %}
+              <span class="pending-badge">{{ s.total_pending|money }}</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+  <div class="empty-state">
+    No clients yet.
+    <a href="/clients/new">Add your first client</a> or they'll be auto-linked when you create events.
+  </div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterClients(q) {
+  q = q.toLowerCase().trim();
+  document.querySelectorAll('#clientsBody .client-row').forEach(row => {
+    row.style.display = (!q || row.textContent.toLowerCase().includes(q)) ? '' : 'none';
+  });
+}
+</script>
+{% endblock %}

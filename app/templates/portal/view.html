@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ event.name }} — Client Portal</title>
+  <link rel="stylesheet" href="/static/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/static/css/style.css?v=20">
+</head>
+<body class="portal-page">
+  <div class="portal-container">
+    <div class="portal-header">
+      <h1>{{ event.name }}</h1>
+      <p>{{ event.client_name }} &bull; {{ event.event_date.strftime('%d %b %Y') if event.event_date else 'TBD' }}</p>
+    </div>
+
+    <div class="portal-body">
+      <!-- Delivery Timeline -->
+      <h6 style="font-size:.8rem; font-weight:700; color:var(--lif-muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px">
+        Delivery Progress
+      </h6>
+      <div class="portal-timeline">
+        {% for stage in delivery_stages %}
+        <div class="timeline-step {% if loop.index0 < current_stage %}completed{% elif loop.index0 == current_stage %}current{% endif %}">
+          <div class="timeline-dot">
+            {% if loop.index0 < current_stage %}
+              <i class="bi bi-check"></i>
+            {% else %}
+              <i class="bi {{ stage.icon }}"></i>
+            {% endif %}
+          </div>
+          <span class="timeline-label">{{ stage.label }}</span>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- Payment Progress -->
+      <h6 style="font-size:.8rem; font-weight:700; color:var(--lif-muted); text-transform:uppercase; letter-spacing:.05em; margin-top:32px; margin-bottom:8px">
+        Payment Status
+      </h6>
+      <div class="portal-progress">
+        <div class="portal-progress-bar">
+          <div class="portal-progress-fill" style="width: {{ progress_pct }}%"></div>
+        </div>
+        <div class="portal-progress-label">
+          <span>₹{{ "{:,.0f}".format(total_paid) }} paid</span>
+          <span>₹{{ "{:,.0f}".format(total_pending) }} pending</span>
+        </div>
+      </div>
+
+      <div style="text-align:center; margin:12px 0; font-size:.85rem; color:var(--lif-muted)">
+        {{ progress_pct }}% of ₹{{ "{:,.0f}".format(event.quoted_amount) }}
+      </div>
+
+      <!-- Payment History -->
+      {% if payments %}
+      <h6 style="font-size:.8rem; font-weight:700; color:var(--lif-muted); text-transform:uppercase; letter-spacing:.05em; margin-top:32px; margin-bottom:12px">
+        Payment History
+      </h6>
+      <div>
+        {% for p in payments %}
+        <div class="portal-payment">
+          <div>
+            <div class="portal-payment-date">{{ p.payment_date.strftime('%d %b %Y') }}</div>
+            {% if p.notes %}<div style="font-size:.75rem; color:var(--lif-muted)">{{ p.notes }}</div>{% endif %}
+          </div>
+          <div class="portal-payment-amount">₹{{ "{:,.0f}".format(p.amount) }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <!-- Event Info -->
+      <div style="margin-top:32px; padding-top:20px; border-top:1px solid var(--lif-border)">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:.85rem">
+          {% if event.event_type %}
+          <div><strong>Type:</strong> {{ event.event_type }}</div>
+          {% endif %}
+          {% if event.venue %}
+          <div><strong>Venue:</strong> {{ event.venue }}</div>
+          {% endif %}
+          <div><strong>Status:</strong> {{ event.status.value|title }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align:center; padding:20px; color:var(--lif-muted); font-size:.75rem">
+    Powered by Life in Frame Studio Tracker
+  </div>
+</body>
+</html>

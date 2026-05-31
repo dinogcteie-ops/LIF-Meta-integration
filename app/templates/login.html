@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sign in - Life in Frame Studio Tracker</title>
+  <link rel="stylesheet" href="/static/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <main class="login-page">
+    <section class="login-brand-panel">
+      <img class="login-logo" src="/static/logo.avif" alt="Life in Frame" onerror="this.style.display='none'">
+      <div class="page-kicker" style="color: var(--lif-gold);">Studio finance</div>
+      <h1 class="login-brand-title">Life in Frame</h1>
+      <p class="login-brand-text">A private command center for client collections, production spend, and event profitability.</p>
+      <div class="brand-sub mt-4">Mumbai / Bangalore</div>
+    </section>
+    <section class="login-form-panel">
+      <div class="login-card">
+        <h2 class="login-card-title">Welcome back</h2>
+        <p class="text-muted mb-4">Sign in to access studio financials.</p>
+
+        {% if error %}
+          <div class="alert alert-danger py-2 mb-3" style="font-size:.85rem;">{{ error }}</div>
+        {% endif %}
+
+        <form method="post" action="/login">
+          <div class="mb-3">
+            <label class="form-label" for="pw">Password</label>
+            <input type="password" name="password" id="pw" class="form-control" autofocus required>
+          </div>
+          <button type="submit" class="btn btn-dark w-100 mt-1 icon-btn justify-content-center"><i class="bi bi-lock"></i>Sign in</button>
+        </form>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

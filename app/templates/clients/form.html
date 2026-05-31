@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if client else 'New' }} client{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <div class="page-kicker">Client record</div>
+    <h1 class="page-title">{{ 'Edit client' if client else 'New client' }}</h1>
+    <p class="page-subtitle">Store contact details and link events for lifetime value tracking.</p>
+  </div>
+</header>
+
+<form method="post"
+      action="{{ '/clients/' ~ client.id if client else '/clients' }}"
+      class="card form-card">
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">Full name <span class="text-danger">*</span></label>
+        <input name="name" class="form-control" required
+               value="{{ client.name if client else '' }}"
+               placeholder="e.g. Ravi & Priya Sharma">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Phone</label>
+        <input name="phone" class="form-control" type="tel"
+               value="{{ client.phone if client else '' }}"
+               placeholder="+91 98765 43210">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Email</label>
+        <input name="email" class="form-control" type="email"
+               value="{{ client.email if client else '' }}"
+               placeholder="client@example.com">
+      </div>
+      <div class="col-md-12">
+        <label class="form-label">Address</label>
+        <input name="address" class="form-control"
+               value="{{ client.address if client else '' }}"
+               placeholder="City, State">
+      </div>
+      <div class="col-md-12">
+        <label class="form-label">Notes</label>
+        <textarea name="notes" class="form-control" rows="2"
+                  placeholder="Referred by..., special requirements, etc.">{{ client.notes if client else '' }}</textarea>
+      </div>
+    </div>
+    <div class="d-flex justify-content-between mt-4">
+      {% if client %}
+        <a href="/clients/{{ client.id }}" class="btn btn-link">Cancel</a>
+      {% else %}
+        <a href="/clients" class="btn btn-link">Cancel</a>
+      {% endif %}
+      <button type="submit" class="btn btn-dark icon-btn">
+        <i class="bi bi-check2"></i>{{ 'Save' if client else 'Create client' }}
+      </button>
+    </div>
+  </div>
+</form>
+{% endblock %}

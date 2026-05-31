@@ -1,0 +1,22 @@
+# Netlify is the public front door: it serves the domain, HTTPS and CDN, and
+# proxies every request to the FastAPI app running on Render. Netlify itself runs
+# no Python — the rewrite below forwards all traffic (incl. POST) to the backend.
+#
+# 1) Replace <app> with your Render service hostname.
+# 2) Set BACKEND_ORIGIN / META_REFRESH_TOKEN in Netlify env (Site settings → Env).
+
+[build]
+  publish = "netlify_public"
+  functions = "netlify/functions"
+  command = "mkdir -p netlify_public && echo 'LIF CRM is served by Netlify proxy.' > netlify_public/index.html"
+
+# Daily Meta metrics refresh (also keeps the free Render instance warm).
+[functions."refresh-meta"]
+  schedule = "0 6 * * *"
+
+# Proxy everything to the Render backend. Keep this LAST.
+[[redirects]]
+  from = "/*"
+  to = "https://<app>.onrender.com/:splat"
+  status = 200
+  force = true

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if payee else 'New' }} payee{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <div class="page-kicker">Payee record</div>
+    <h1 class="page-title">{{ 'Edit payee' if payee else 'New payee' }}</h1>
+    <p class="page-subtitle">Track freelancers, vendors, and other payees to see total studio spend per person.</p>
+  </div>
+</header>
+
+<form method="post"
+      action="{{ '/payees/' ~ payee.id if payee else '/payees' }}"
+      class="card form-card">
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">Full name <span class="text-danger">*</span></label>
+        <input name="name" class="form-control" required
+               value="{{ payee.name if payee else '' }}"
+               placeholder="e.g. Ramesh Kumar">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Type</label>
+        <select name="payee_type" class="form-select">
+          {% for t in payee_types %}
+            <option value="{{ t }}"
+              {{ 'selected' if payee and payee.payee_type == t else ('selected' if not payee and t == 'freelancer' else '') }}>
+              {{ t|capitalize }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Phone</label>
+        <input name="phone" class="form-control" type="tel"
+               value="{{ payee.phone if payee else '' }}"
+               placeholder="+91 98765 43210">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Email</label>
+        <input name="email" class="form-control" type="email"
+               value="{{ payee.email if payee else '' }}"
+               placeholder="payee@example.com">
+      </div>
+      <div class="col-md-12">
+        <label class="form-label">Notes</label>
+        <textarea name="notes" class="form-control" rows="2"
+                  placeholder="Specialty, bank details reminder, rate, etc.">{{ payee.notes if payee else '' }}</textarea>
+      </div>
+    </div>
+    <div class="d-flex justify-content-between mt-4">
+      {% if payee %}
+        <a href="/payees/{{ payee.id }}" class="btn btn-link">Cancel</a>
+      {% else %}
+        <a href="/payees" class="btn btn-link">Cancel</a>
+      {% endif %}
+      <button type="submit" class="btn btn-dark icon-btn">
+        <i class="bi bi-check2"></i>{{ 'Save' if payee else 'Create payee' }}
+      </button>
+    </div>
+  </div>
+</form>
+{% endblock %}

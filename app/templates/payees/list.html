@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Payees{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <div class="page-kicker">Directory</div>
+    <h1 class="page-title">Payees</h1>
+    <p class="page-subtitle">Freelancers, vendors, and other parties the studio pays — with total spend history.</p>
+  </div>
+  <div class="toolbar">
+    <input id="payeeSearch" type="search" placeholder="Search payees..."
+           class="form-control form-control-sm" style="width:min(220px,100%);"
+           oninput="filterPayees(this.value)">
+    <a href="/payees/new" class="btn btn-dark icon-btn"><i class="bi bi-plus-lg"></i>New payee</a>
+  </div>
+</header>
+
+{% if payees %}
+<div class="card section-card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th class="ps-4">Name</th>
+          <th>Type</th>
+          <th>Phone</th>
+          <th>Email</th>
+          <th class="text-end">Expenses</th>
+          <th class="text-end pe-4">Total paid</th>
+        </tr>
+      </thead>
+      <tbody id="payeesBody">
+      {% for p in payees %}
+        {% set s = stats_by_pid.get(p.id) %}
+        <tr class="row-clickable payee-row" onclick="location.href='/payees/{{ p.id }}'">
+          <td class="ps-4">
+            <a href="/payees/{{ p.id }}" class="event-link">{{ p.name }}</a>
+            {% if p.notes %}<div class="client-name text-truncate" style="max-width:260px;">{{ p.notes }}</div>{% endif %}
+          </td>
+          <td>
+            <span class="payee-type-badge payee-{{ p.payee_type }}">{{ p.payee_type }}</span>
+          </td>
+          <td class="text-muted small">{{ p.phone or '—' }}</td>
+          <td class="text-muted small">{{ p.email or '—' }}</td>
+          <td class="text-end">{{ s.expense_count if s else 0 }}</td>
+          <td class="text-end pe-4 money fw-semibold">{{ (s.total_spent if s else 0)|money }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+  <div class="empty-state">
+    No payees yet.
+    <a href="/payees/new">Add a freelancer or vendor</a> to start tracking spend.
+  </div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterPayees(q) {
+  q = q.toLowerCase().trim();
+  document.querySelectorAll('#payeesBody .payee-row').forEach(row => {
+    row.style.display = (!q || row.textContent.toLowerCase().includes(q)) ? '' : 'none';
+  });
+}
+</script>
+{% endblock %}

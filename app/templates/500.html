@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Server error{% endblock %}
+{% block content %}
+<div class="empty-state" style="padding: 6rem 0;">
+  <i class="bi bi-exclamation-triangle empty-state-icon" style="color: var(--lif-red)"></i>
+  <p class="mb-1 fw-semibold" style="font-size: 1.2rem;">Something went wrong</p>
+  <p class="text-muted small mb-4">An unexpected server error occurred. Please try again.</p>
+  <a href="/dashboard" class="btn btn-dark icon-btn">
+    <i class="bi bi-speedometer2"></i>Back to dashboard
+  </a>
+</div>
+{% endblock %}

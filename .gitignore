@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+build/
+dist/
+
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+*-sa.json
+*service-account*.json
+google-sa.json
+sturdy-layout-*.json
+*.pem
+*.key
+
+# Local DB / logs
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+*.log
+
+# Editors
+.vscode/
+.idea/
+
+# Node (Netlify functions)
+node_modules/

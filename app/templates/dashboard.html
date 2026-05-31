@@ -1,0 +1,788 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <div class="page-kicker">Life in Frame</div>
+    <h1 class="page-title">Finance cockpit</h1>
+    <p class="page-subtitle">A clear view of studio balance, client collections, vendor payables, and event profitability.</p>
+  </div>
+  <div class="toolbar">
+    <a href="/events/new" class="btn btn-dark icon-btn"><i class="bi bi-plus-lg"></i>New event</a>
+    <a href="/expenses/new" class="btn btn-outline-dark icon-btn"><i class="bi bi-receipt-cutoff"></i>New expense</a>
+  </div>
+</header>
+
+{% if alerts %}
+<div class="alerts-banner mb-4">
+  <div class="alerts-banner-header">
+    <i class="bi bi-bell-fill"></i> Attention
+  </div>
+  <div class="alerts-banner-body">
+    {% for a in alerts %}
+      <a href="{{ a.link }}" class="alert-item alert-{{ a.severity }}">
+        <i class="bi bi-{{ a.icon }}"></i>
+        <span>{{ a.message }}</span>
+        <i class="bi bi-chevron-right alert-arrow"></i>
+      </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══ Sprint 1 & 5: KPI Cards with Sparklines ═══ -->
+{% set kpi_formulas = {
+  "Monthly Revenue":  "Payments received during the current calendar month.",
+  "Avg Event Value":  "Total quoted ÷ active &amp; completed events.",
+  "Profit Margin":    "(Total received − All expenses) ÷ Total received × 100.",
+  "Booking Pace":     "Events per month averaged over the last 6 months.",
+  "Collection Rate":  "Total received ÷ Total invoiced × 100."
+} %}
+{% if kpis %}
+<div class="kpi-grid">
+  {% for kpi in kpis %}
+  <div class="kpi-card">
+    <div class="kpi-card-header">
+      <div class="kpi-card-icon {{ kpi.color }}">
+        <i class="bi {{ kpi.icon }}"></i>
+      </div>
+      <div class="kpi-card-label" style="display:flex;align-items:center;gap:.3rem;">
+        {{ kpi.label }}
+        {% if kpi_formulas.get(kpi.label) %}
+        <span tabindex="0"
+              data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true"
+              title="{{ kpi_formulas[kpi.label] }}"
+              style="cursor:help;color:var(--lif-muted);font-size:.75rem;line-height:1">
+          <i class="bi bi-info-circle"></i>
+        </span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="kpi-card-value">{{ kpi.formatted }}</div>
+    <div class="kpi-card-trend {% if kpi.trend > 0 %}kpi-trend-up{% elif kpi.trend < 0 %}kpi-trend-down{% else %}kpi-trend-neutral{% endif %}">
+      {% if kpi.trend > 0 %}<i class="bi bi-arrow-up-short"></i>+{{ kpi.trend }}%
+      {% elif kpi.trend < 0 %}<i class="bi bi-arrow-down-short"></i>{{ kpi.trend }}%
+      {% endif %}
+      <span style="color:var(--lif-muted); margin-left:4px">{{ kpi.trend_label }}</span>
+    </div>
+    {% if kpi.sparkline %}
+    <canvas class="kpi-sparkline" data-sparkline="{{ kpi.sparkline|tojson }}" data-sparkline-color="{% if kpi.color == 'lif-green' %}#15803d{% elif kpi.color == 'lif-gold' %}#c5a23c{% elif kpi.color == 'lif-blue' %}#2563eb{% else %}#c5a23c{% endif %}"></canvas>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="stat-grid">
+
+  <!-- Bank balance → drill-down modal -->
+  <div class="card stat-card stat-card-clickable"
+       data-bs-toggle="modal" data-bs-target="#modalBankBalance" role="button" tabindex="0">
+    <div class="card-body">
+      <div>
+        <div class="stat-label">Bank balance</div>
+        <div class="stat-value">{{ bank.balance|money }}</div>
+      </div>
+      <div class="stat-sub">{{ bank.total_income|money }} in / {{ bank.total_paid_expense|money }} paid out</div>
+      {% if bank.booked_advance > 0 %}
+      <div class="advance-note">
+        <i class="bi bi-calendar-check"></i>
+        incl. {{ bank.booked_advance|money }} advance from {{ bank.booked_advance_count }} booked shoot{{ 's' if bank.booked_advance_count != 1 else '' }}
+      </div>
+      {% endif %}
+      <div class="stat-drill-hint"><i class="bi bi-table"></i> Click to see breakdown</div>
+    </div>
+  </div>
+
+  <!-- Pending from clients → /receivables -->
+  <a href="/receivables" class="card stat-card stat-card-clickable" style="--accent: var(--lif-red);">
+    <div class="card-body">
+      <div>
+        <div class="stat-label">Pending from clients</div>
+        <div class="stat-value text-danger">{{ bank.total_pending_from_clients|money }}</div>
+      </div>
+      <div class="stat-sub">Amounts still to be collected</div>
+      <div class="stat-drill-hint"><i class="bi bi-arrow-right-circle"></i> Open Receivables</div>
+    </div>
+  </a>
+
+  <!-- Vendor payables → /payables -->
+  <a href="/payables" class="card stat-card stat-card-clickable" style="--accent: var(--lif-amber);">
+    <div class="card-body">
+      <div>
+        <div class="stat-label">Vendor payables</div>
+        <div class="stat-value text-warning">{{ bank.outstanding_payable|money }}</div>
+      </div>
+      <div class="stat-sub">Expenses not yet paid out</div>
+      <div class="stat-drill-hint"><i class="bi bi-arrow-right-circle"></i> Open Payables</div>
+    </div>
+  </a>
+
+  <!-- MTD profit → drill-down modal -->
+  <div class="card stat-card stat-card-clickable"
+       style="--accent: {{ 'var(--lif-green)' if mtd.profit >= 0 else 'var(--lif-red)' }};"
+       data-bs-toggle="modal" data-bs-target="#modalMtdProfit" role="button" tabindex="0">
+    <div class="card-body">
+      <div>
+        <div class="stat-label">Month-to-date profit</div>
+        <div class="stat-value {{ 'text-success' if mtd.profit >= 0 else 'text-danger' }}">{{ mtd.profit|money }}</div>
+      </div>
+      <div class="stat-sub">{{ mtd.income|money }} in / {{ mtd.event_expense|money }} event exp.</div>
+      {% if mtd.overhead > 0 %}<div class="stat-sub stat-sub-sm text-muted">+ {{ mtd.overhead|money }} overhead</div>{% endif %}
+      <div class="stat-drill-hint"><i class="bi bi-table"></i> Click to see breakdown</div>
+    </div>
+  </div>
+
+  <!-- QTD profit → drill-down modal -->
+  <div class="card stat-card stat-card-clickable"
+       style="--accent: {{ 'var(--lif-green)' if qtd.profit >= 0 else 'var(--lif-red)' }};"
+       data-bs-toggle="modal" data-bs-target="#modalQtdProfit" role="button" tabindex="0">
+    <div class="card-body">
+      <div>
+        <div class="stat-label">Quarter-to-date profit</div>
+        <div class="stat-value {{ 'text-success' if qtd.profit >= 0 else 'text-danger' }}">{{ qtd.profit|money }}</div>
+      </div>
+      <div class="stat-sub">{{ qtd.income|money }} in / {{ qtd.event_expense|money }} event exp.</div>
+      {% if qtd.overhead > 0 %}<div class="stat-sub stat-sub-sm text-muted">+ {{ qtd.overhead|money }} overhead</div>{% endif %}
+      <div class="stat-drill-hint"><i class="bi bi-table"></i> Click to see breakdown</div>
+    </div>
+  </div>
+
+  <!-- Total revenue → drill-down modal -->
+  <div class="card stat-card stat-card-clickable"
+       style="--accent: var(--lif-accent);"
+       data-bs-toggle="modal" data-bs-target="#modalTotalRevenue" role="button" tabindex="0">
+    <div class="card-body">
+      <div>
+        <div class="stat-label">Total revenue</div>
+        <div class="stat-value">{{ total_revenue|money }}</div>
+      </div>
+      <div class="stat-sub">Quoted value of all active &amp; completed events</div>
+      <div class="stat-drill-hint"><i class="bi bi-table"></i> Click to see breakdown</div>
+    </div>
+  </div>
+
+</div>
+
+{% if funnel and funnel.total_active %}
+<div class="row g-3 mb-4">
+  <div class="col-lg-6">
+    <div class="card lif-card h-100">
+      <div class="section-header">
+        <h5 class="section-title"><i class="bi bi-funnel me-2"></i>Lead pipeline</h5>
+        <a href="/leads" class="btn btn-sm btn-outline-secondary icon-btn">
+          <i class="bi bi-arrow-right"></i>All leads
+        </a>
+      </div>
+      <div class="card-body pt-2">
+        <div class="funnel-cards funnel-compact">
+          <a href="/leads?status=new" class="funnel-card">
+            <div class="funnel-card-label">New</div>
+            <div class="funnel-card-value">{{ funnel.new_count }}</div>
+          </a>
+          <div class="funnel-arrow"><i class="bi bi-chevron-right"></i></div>
+          <a href="/leads?status=quoted" class="funnel-card">
+            <div class="funnel-card-label">Quoted</div>
+            <div class="funnel-card-value">{{ funnel.quoted_count }}</div>
+          </a>
+          <div class="funnel-arrow"><i class="bi bi-chevron-right"></i></div>
+          <a href="/leads?status=won" class="funnel-card funnel-won">
+            <div class="funnel-card-label">Won</div>
+            <div class="funnel-card-value">{{ funnel.won_count }}</div>
+          </a>
+          <div class="funnel-stat ms-auto">
+            <div class="funnel-stat-label">Conv. rate</div>
+            <div class="funnel-stat-value">{{ funnel.conversion_rate }}%</div>
+          </div>
+        </div>
+        {% if funnel.total_pipeline_value %}
+        <div class="text-muted small mt-2">
+          Pipeline value: <strong>{{ funnel.total_pipeline_value | money }}</strong>
+          {% if funnel.total_won_value %} · Won: <strong>{{ funnel.total_won_value | money }}</strong>{% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% if sources %}
+  <div class="col-lg-6">
+    <div class="card lif-card h-100">
+      <div class="section-header">
+        <h5 class="section-title"><i class="bi bi-bar-chart me-2"></i>Source conversion</h5>
+      </div>
+      <div class="card-body pt-2">
+        <div class="table-responsive">
+          <table class="table table-sm lif-table mb-0">
+            <thead><tr><th>Source</th><th class="text-center">Leads</th><th class="text-center">Won</th><th class="text-center">Rate</th></tr></thead>
+            <tbody>
+            {% for s in sources[:5] %}
+              <tr>
+                <td>{{ s.source }}</td>
+                <td class="text-center text-muted">{{ s.total }}</td>
+                <td class="text-center text-success fw-semibold">{{ s.won }}</td>
+                <td class="text-center">
+                  <span class="profit-pct-badge {{ 'pct-positive' if s.pct >= 40 else ('pct-ok' if s.pct > 0 else 'pct-negative') }}">
+                    {{ s.pct | int }}%
+                  </span>
+                </td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="card section-card">
+  <div class="section-header">
+    <div>
+      <h5 class="section-title">Event performance</h5>
+      <div class="text-muted small mt-1">Shoots scoped to the selected period.</div>
+    </div>
+    <div class="toolbar">
+      <div class="period-toggle" role="group">
+        <a href="/dashboard?period=month"   class="period-btn {{ 'active' if period == 'month'   else '' }}">This month</a>
+        <a href="/dashboard?period=quarter" class="period-btn {{ 'active' if period == 'quarter' else '' }}">This quarter</a>
+        <a href="/dashboard?period=year"    class="period-btn {{ 'active' if period == 'year'    else '' }}">This year</a>
+        <a href="/dashboard?period=all"     class="period-btn {{ 'active' if period == 'all'     else '' }}">All time</a>
+      </div>
+      <input id="eventSearch" type="search" placeholder="Search events..."
+             class="form-control form-control-sm" style="width: min(220px, 100%);"
+             oninput="filterEvents(this.value)">
+      <a href="/events" class="btn btn-sm btn-outline-dark icon-btn"><i class="bi bi-arrow-right"></i>View all</a>
+    </div>
+  </div>
+  {% if recent_events %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 events-summary-table" id="eventsTable">
+        <thead>
+          <tr>
+            <th class="ps-4">Event</th>
+            <th>Date</th>
+            <th class="text-end">Value</th>
+            <th class="text-end">Received</th>
+            <th class="text-end">Pending</th>
+            <th class="text-end">Expenses</th>
+            <th class="text-end">Profit</th>
+            <th class="text-end pe-4">Margin</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for r in recent_events %}
+          <tr class="event-row">
+            <td class="ps-4">
+              <a href="/events/{{ r.event.id }}" class="event-link">{{ r.event.name }}</a>
+              {% if r.event.client_name %}<div class="client-name">{{ r.event.client_name }}</div>{% endif %}
+            </td>
+            <td class="text-muted small">{{ r.event.event_date or '-' }}</td>
+            <td class="text-end money fw-semibold">{{ r.event.quoted_amount|money }}</td>
+            <td class="text-end money">{{ r.income|money }}</td>
+            <td class="text-end money">
+              {% if r.pending_from_client > 0 %}
+                <span class="pending-badge">{{ r.pending_from_client|money }}</span>
+              {% else %}
+                <span class="status-pill status-paid">Paid</span>
+              {% endif %}
+            </td>
+            <td class="text-end money text-danger">{{ r.expense|money }}</td>
+            {% if r.event.status.value == 'booked' %}
+            <td class="text-end text-muted">—</td>
+            <td class="text-end pe-4 text-muted">—</td>
+            {% else %}
+            <td class="text-end money fw-bold {{ 'text-success' if r.profit >= 0 else 'text-danger' }}">{{ r.profit|money }}</td>
+            <td class="text-end pe-4">
+              <span class="profit-pct-badge {{ 'pct-positive' if r.profit_pct >= 20 else ('pct-ok' if r.profit_pct >= 0 else 'pct-negative') }}">
+                {{ r.profit_pct|pct }}
+              </span>
+            </td>
+            {% endif %}
+          </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="totals-row" id="totalsRow">
+            <td class="ps-4 fw-bold" colspan="2">Totals</td>
+            <td class="text-end money fw-bold">{{ recent_events|sum(attribute='event.quoted_amount')|money }}</td>
+            <td class="text-end money fw-bold">{{ recent_events|sum(attribute='income')|money }}</td>
+            <td class="text-end money fw-bold">
+              {% set total_pending = recent_events|sum(attribute='pending_from_client') %}
+              {% if total_pending > 0 %}{{ total_pending|money }}{% else %}-{% endif %}
+            </td>
+            <td class="text-end money fw-bold text-danger">{{ recent_events|sum(attribute='expense')|money }}</td>
+            <td class="text-end money fw-bold {{ 'text-success' if recent_events|sum(attribute='profit') >= 0 else 'text-danger' }}">
+              {{ recent_events|sum(attribute='profit')|money }}
+            </td>
+            <td class="pe-4"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div id="noResults" class="empty-state d-none">No events match your search.</div>
+  {% else %}
+    <div class="empty-state">
+      {% if period == 'all' %}
+        No events yet. <a href="/events/new">Create your first event</a>.
+      {% else %}
+        No events in this period. <a href="/dashboard?period=all">View all</a> or <a href="/events/new">add one</a>.
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+
+<!-- ═══ Sprint 1: Year-over-Year Revenue Comparison ═══ -->
+{% if yoy %}
+<div class="analytics-section mt-4">
+  <h4 class="analytics-section-title"><i class="bi bi-bar-chart-line me-2"></i>Year-over-Year Revenue</h4>
+  <div class="yoy-grid">
+    {% for y in yoy %}
+    <div class="yoy-card">
+      <div class="yoy-card-period">{{ y.period_label }}</div>
+      <div class="yoy-card-values">
+        <span class="yoy-current">{{ y.current_value|money }}</span>
+        {% if y.prior_value > 0 %}
+        <span class="yoy-prior">{{ y.prior_value|money }}</span>
+        {% endif %}
+        <span class="yoy-change {% if y.change_pct >= 0 %}up{% else %}down{% endif %}">
+          {% if y.change_pct >= 0 %}+{% endif %}{{ y.change_pct }}%
+        </span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══ Sprint 1: Event Type Profitability ═══ -->
+{% if type_profit %}
+<div class="analytics-section">
+  <h4 class="analytics-section-title"><i class="bi bi-pie-chart me-2"></i>Profitability by Event Type</h4>
+  <div class="table-responsive">
+    <table class="profit-table">
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th class="text-center">Events</th>
+          <th class="text-end">Avg Value</th>
+          <th class="text-end">Avg Profit</th>
+          <th class="text-end">Margin</th>
+          <th style="width:120px">Profitability</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for tp in type_profit %}
+        <tr>
+          <td><strong>{{ tp.event_type }}</strong></td>
+          <td class="text-center">{{ tp.event_count }}</td>
+          <td class="text-end money">{{ tp.avg_quoted|money }}</td>
+          <td class="text-end money {{ 'text-success' if tp.avg_profit >= 0 else 'text-danger' }}">{{ tp.avg_profit|money }}</td>
+          <td class="text-end">
+            <span class="profit-pct-badge {{ 'pct-positive' if tp.avg_margin_pct >= 20 else ('pct-ok' if tp.avg_margin_pct >= 0 else 'pct-negative') }}">
+              {{ tp.avg_margin_pct }}%
+            </span>
+          </td>
+          <td>
+            <div class="profit-bar">
+              <div class="profit-bar-fill" style="width:{{ [tp.avg_margin_pct, 100]|min }}%; background:{% if tp.avg_margin_pct >= 30 %}var(--lif-green){% elif tp.avg_margin_pct >= 0 %}var(--lif-gold){% else %}var(--lif-red){% endif %}"></div>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══ Sprint 5: Seasonal Analysis Heatmap ═══ -->
+{% if seasonal %}
+<div class="analytics-section">
+  <h4 class="analytics-section-title"><i class="bi bi-calendar-heat me-2"></i>Seasonal Booking Pattern</h4>
+  <div class="seasonal-grid">
+    {% set max_count = seasonal|map(attribute='event_count')|max or 1 %}
+    {% for s in seasonal %}
+    {% set intensity = (s.event_count / max_count * 100)|int if max_count > 0 else 0 %}
+    <div class="seasonal-cell" style="background: rgba(47,125,75,{{ intensity / 200 }});">
+      <span class="seasonal-month">{{ s.month_name }}</span>
+      <span class="seasonal-count">{{ s.event_count }}</span>
+      {% if s.avg_revenue > 0 %}
+      <span class="seasonal-revenue">avg {{ s.avg_revenue|money }}</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     DRILL-DOWN MODALS — stat card click-through breakdowns
+═══════════════════════════════════════════════════════════════════════════ -->
+
+<!-- ── Modal 1: Bank Balance ── -->
+<div class="modal fade drilldown-modal" id="modalBankBalance" tabindex="-1" aria-labelledby="modalBankBalanceLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalBankBalanceLabel"><i class="bi bi-bank me-2"></i>Bank Balance — How it's calculated</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Income section -->
+        <div class="modal-section">
+          <div class="modal-section-title">Income — Payments received from clients</div>
+          <table class="table table-sm table-hover align-middle mb-0">
+            <thead><tr><th>Event</th><th>Date</th><th>Status</th><th class="text-end">Received</th></tr></thead>
+            <tbody>
+            {% for r in all_ep if r.income > 0 %}
+            <tr>
+              <td><a href="/events/{{ r.event.id }}" class="event-link">{{ r.event.name }}</a></td>
+              <td class="text-muted small">{{ r.event.event_date or '—' }}</td>
+              <td><span class="badge bg-secondary bg-opacity-10 text-secondary border">{{ r.event.status.value }}</span></td>
+              <td class="text-end money text-success">{{ r.income|money }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="text-muted small text-center py-2">No payments recorded yet.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="drilldown-total">
+          <span>Total income</span>
+          <span class="text-success">{{ bank.total_income|money }}</span>
+        </div>
+        {% if bank.booked_advance > 0 %}
+        <div class="formula-row" style="background:rgba(201,168,76,.08)">
+          <i class="bi bi-info-circle text-warning"></i>
+          <span>Incl. <strong>{{ bank.booked_advance|money }}</strong> advance from {{ bank.booked_advance_count }} booked shoot{{ 's' if bank.booked_advance_count != 1 else '' }} — not yet earned.</span>
+        </div>
+        {% endif %}
+
+        <!-- Expense section — expandable per scope -->
+        <div class="modal-section mt-2">
+          <div class="modal-section-title">Expenses paid out</div>
+        </div>
+        {% for scope_key, scope_icon in [('event','bi-camera'),('company','bi-building'),('personal','bi-person')] %}
+        {% set exps = paid_expenses_detail.get(scope_key, []) %}
+        {% set scope_total = paid_by_scope.get(scope_key, 0) %}
+        {% if scope_total > 0 %}
+        <!-- Scope header — click to expand / collapse -->
+        <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom"
+             style="cursor:pointer; background:var(--lif-bg);"
+             data-bs-toggle="collapse" data-bs-target="#paidScope{{ scope_key }}"
+             aria-expanded="true" aria-controls="paidScope{{ scope_key }}">
+          <span class="fw-semibold text-capitalize d-flex align-items-center gap-2">
+            <i class="bi {{ scope_icon }} text-muted" style="font-size:.85rem"></i>
+            {{ scope_key }}
+            <span class="badge bg-secondary bg-opacity-10 text-secondary border" style="font-weight:500">
+              {{ exps|length }} item{{ 's' if exps|length != 1 else '' }}
+            </span>
+          </span>
+          <span class="d-flex align-items-center gap-2">
+            <span class="money text-danger fw-semibold">{{ scope_total|money }}</span>
+            <i class="bi bi-chevron-down text-muted" style="font-size:.75rem"></i>
+          </span>
+        </div>
+        <div class="collapse show" id="paidScope{{ scope_key }}">
+          <table class="table table-sm table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-4">Date</th>
+                <th>Category</th>
+                {% if scope_key == 'event' %}<th>Event</th>{% endif %}
+                <th>Paid to</th>
+                <th class="text-end pe-3">Paid</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for row in exps %}
+            <tr>
+              <td class="ps-4 text-muted small">{{ row.date }}</td>
+              <td class="small">{{ row.cat_name }}</td>
+              {% if scope_key == 'event' %}<td class="text-muted small">{{ row.event_name or '—' }}</td>{% endif %}
+              <td class="text-muted small">{{ row.paid_to or '—' }}</td>
+              <td class="text-end pe-3 money text-danger">{{ row.paid|money }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+        {% endfor %}
+        <div class="drilldown-total">
+          <span>Total paid out</span>
+          <span class="text-danger">{{ bank.total_paid_expense|money }}</span>
+        </div>
+
+        <!-- Formula -->
+        <div class="formula-row">
+          <span class="formula-val text-success">{{ bank.total_income|money }}</span>
+          <span class="formula-op">Income</span>
+          <span class="formula-op">−</span>
+          <span class="formula-val text-danger">{{ bank.total_paid_expense|money }}</span>
+          <span class="formula-op">Paid out</span>
+          <span class="formula-op">=</span>
+          <span class="formula-val {% if bank.balance >= 0 %}text-success{% else %}text-danger{% endif %}">{{ bank.balance|money }}</span>
+          <span class="formula-op fw-bold">Bank Balance</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <a href="/expenses/analytics" class="btn btn-sm btn-outline-secondary">Expense Analytics</a>
+        <a href="/reports" class="btn btn-sm btn-outline-secondary">Full Reports</a>
+        <button type="button" class="btn btn-sm btn-dark" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal 2: MTD Profit ── -->
+<div class="modal fade drilldown-modal" id="modalMtdProfit" tabindex="-1" aria-labelledby="modalMtdProfitLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalMtdProfitLabel"><i class="bi bi-calendar-month me-2"></i>Month-to-date Profit — How it's calculated</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Events this month -->
+        <div class="modal-section">
+          <div class="modal-section-title">Events this month</div>
+          {% if mtd_ep %}
+          <table class="table table-sm table-hover align-middle mb-0">
+            <thead><tr><th>Event</th><th>Date</th><th class="text-end">Income</th><th class="text-end">Expenses</th><th class="text-end">Profit</th></tr></thead>
+            <tbody>
+            {% for r in mtd_ep %}
+            <tr>
+              <td><a href="/events/{{ r.event.id }}" class="event-link">{{ r.event.name }}</a></td>
+              <td class="text-muted small">{{ r.event.event_date }}</td>
+              <td class="text-end money">{{ r.income|money }}</td>
+              <td class="text-end money text-danger">{{ r.expense|money }}</td>
+              <td class="text-end money fw-semibold {% if r.profit >= 0 %}text-success{% else %}text-danger{% endif %}">{{ r.profit|money }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+          {% else %}
+          <p class="text-muted small px-1 mb-0">No events this month.</p>
+          {% endif %}
+        </div>
+        <div class="drilldown-total">
+          <span>Event income / event expenses</span>
+          <span>{{ mtd.income|money }} / <span class="text-danger">{{ mtd.event_expense|money }}</span></span>
+        </div>
+
+        <!-- Overhead this month -->
+        {% if mtd_overhead_exps %}
+        <div class="modal-section mt-2">
+          <div class="modal-section-title">Overhead expenses this month (company / personal)</div>
+          <table class="table table-sm table-hover align-middle mb-0">
+            <thead><tr><th>Date</th><th>Category</th><th>Scope</th><th class="text-end">Amount</th><th>Paid to</th></tr></thead>
+            <tbody>
+            {% for e in mtd_overhead_exps %}
+            <tr>
+              <td class="text-muted small">{{ e.date }}</td>
+              <td>{{ e.cat_name }}</td>
+              <td><span class="badge bg-secondary bg-opacity-10 text-secondary border">{{ e.scope }}</span></td>
+              <td class="text-end money text-danger">{{ e.amount|money }}</td>
+              <td class="text-muted small">{{ e.paid_to or '—' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="drilldown-total">
+          <span>Total overhead</span>
+          <span class="text-danger">{{ mtd.overhead|money }}</span>
+        </div>
+        {% endif %}
+
+        <!-- Formula -->
+        <div class="formula-row">
+          <span class="formula-val text-success">{{ mtd.income|money }}</span>
+          <span class="formula-op">Income</span>
+          <span class="formula-op">−</span>
+          <span class="formula-val text-danger">{{ mtd.event_expense|money }}</span>
+          <span class="formula-op">Event exp.</span>
+          {% if mtd.overhead > 0 %}
+          <span class="formula-op">−</span>
+          <span class="formula-val text-danger">{{ mtd.overhead|money }}</span>
+          <span class="formula-op">Overhead</span>
+          {% endif %}
+          <span class="formula-op">=</span>
+          <span class="formula-val {% if mtd.profit >= 0 %}text-success{% else %}text-danger{% endif %}">{{ mtd.profit|money }}</span>
+          <span class="formula-op fw-bold">MTD Profit</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <a href="/dashboard?period=month" class="btn btn-sm btn-outline-secondary">View month events</a>
+        <button type="button" class="btn btn-sm btn-dark" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal 3: QTD Profit ── -->
+<div class="modal fade drilldown-modal" id="modalQtdProfit" tabindex="-1" aria-labelledby="modalQtdProfitLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalQtdProfitLabel"><i class="bi bi-bar-chart me-2"></i>Quarter-to-date Profit — How it's calculated</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Events this quarter -->
+        <div class="modal-section">
+          <div class="modal-section-title">Events this quarter</div>
+          {% if qtd_ep %}
+          <table class="table table-sm table-hover align-middle mb-0">
+            <thead><tr><th>Event</th><th>Date</th><th class="text-end">Income</th><th class="text-end">Expenses</th><th class="text-end">Profit</th></tr></thead>
+            <tbody>
+            {% for r in qtd_ep %}
+            <tr>
+              <td><a href="/events/{{ r.event.id }}" class="event-link">{{ r.event.name }}</a></td>
+              <td class="text-muted small">{{ r.event.event_date }}</td>
+              <td class="text-end money">{{ r.income|money }}</td>
+              <td class="text-end money text-danger">{{ r.expense|money }}</td>
+              <td class="text-end money fw-semibold {% if r.profit >= 0 %}text-success{% else %}text-danger{% endif %}">{{ r.profit|money }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+          {% else %}
+          <p class="text-muted small px-1 mb-0">No events this quarter.</p>
+          {% endif %}
+        </div>
+        <div class="drilldown-total">
+          <span>Event income / event expenses</span>
+          <span>{{ qtd.income|money }} / <span class="text-danger">{{ qtd.event_expense|money }}</span></span>
+        </div>
+
+        <!-- Overhead this quarter -->
+        {% if qtd_overhead_exps %}
+        <div class="modal-section mt-2">
+          <div class="modal-section-title">Overhead expenses this quarter (company / personal)</div>
+          <table class="table table-sm table-hover align-middle mb-0">
+            <thead><tr><th>Date</th><th>Category</th><th>Scope</th><th class="text-end">Amount</th><th>Paid to</th></tr></thead>
+            <tbody>
+            {% for e in qtd_overhead_exps %}
+            <tr>
+              <td class="text-muted small">{{ e.date }}</td>
+              <td>{{ e.cat_name }}</td>
+              <td><span class="badge bg-secondary bg-opacity-10 text-secondary border">{{ e.scope }}</span></td>
+              <td class="text-end money text-danger">{{ e.amount|money }}</td>
+              <td class="text-muted small">{{ e.paid_to or '—' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="drilldown-total">
+          <span>Total overhead</span>
+          <span class="text-danger">{{ qtd.overhead|money }}</span>
+        </div>
+        {% endif %}
+
+        <!-- Formula -->
+        <div class="formula-row">
+          <span class="formula-val text-success">{{ qtd.income|money }}</span>
+          <span class="formula-op">Income</span>
+          <span class="formula-op">−</span>
+          <span class="formula-val text-danger">{{ qtd.event_expense|money }}</span>
+          <span class="formula-op">Event exp.</span>
+          {% if qtd.overhead > 0 %}
+          <span class="formula-op">−</span>
+          <span class="formula-val text-danger">{{ qtd.overhead|money }}</span>
+          <span class="formula-op">Overhead</span>
+          {% endif %}
+          <span class="formula-op">=</span>
+          <span class="formula-val {% if qtd.profit >= 0 %}text-success{% else %}text-danger{% endif %}">{{ qtd.profit|money }}</span>
+          <span class="formula-op fw-bold">QTD Profit</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <a href="/dashboard?period=quarter" class="btn btn-sm btn-outline-secondary">View quarter events</a>
+        <button type="button" class="btn btn-sm btn-dark" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal 4: Total Revenue ── -->
+<div class="modal fade drilldown-modal" id="modalTotalRevenue" tabindex="-1" aria-labelledby="modalTotalRevenueLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalTotalRevenueLabel"><i class="bi bi-currency-rupee me-2"></i>Total Revenue — How it's calculated</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-section">
+          <div class="modal-section-title">Quoted value by event status</div>
+          <table class="table table-sm align-middle mb-0">
+            <thead><tr><th>Status</th><th class="text-center">Events</th><th class="text-end">Quoted</th><th class="text-end">Received</th><th class="text-end">Pending</th></tr></thead>
+            <tbody>
+            {% set status_order = ['active','completed','booked','cancelled'] %}
+            {% for s in status_order %}
+            {% if rev_by_status.get(s) %}
+            {% set d = rev_by_status[s] %}
+            <tr>
+              <td><span class="badge bg-secondary bg-opacity-10 text-secondary border text-capitalize">{{ s }}</span></td>
+              <td class="text-center">{{ d.count }}</td>
+              <td class="text-end money">{{ d.quoted|round(2)|money }}</td>
+              <td class="text-end money text-success">{{ d.received|round(2)|money }}</td>
+              <td class="text-end money {% if s != 'cancelled' and d.quoted - d.received > 0 %}text-danger{% else %}text-muted{% endif %}">
+                {{ [d.quoted - d.received, 0]|max|round(2)|money }}
+              </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="drilldown-total">
+          <span>Total revenue (excl. cancelled)</span>
+          <span class="fw-bold">{{ total_revenue|money }}</span>
+        </div>
+        <div class="formula-row">
+          <i class="bi bi-info-circle text-muted"></i>
+          <span>Cancelled events are excluded. Booked events contribute their advance payments; their full quoted value is not yet earned.</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <a href="/events" class="btn btn-sm btn-outline-secondary">View all events</a>
+        <button type="button" class="btn btn-sm btn-dark" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterEvents(q) {
+  q = q.toLowerCase().trim();
+  const rows = document.querySelectorAll('#eventsTable tbody .event-row');
+  let visible = 0;
+  rows.forEach(row => {
+    const text = row.textContent.toLowerCase();
+    const show = !q || text.includes(q);
+    row.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  const totals = document.getElementById('totalsRow');
+  if (totals) totals.style.display = visible ? '' : 'none';
+  const noResults = document.getElementById('noResults');
+  if (noResults) noResults.classList.toggle('d-none', visible > 0 || !q);
+}
+
+// Bootstrap tooltips on KPI info icons
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+    new bootstrap.Tooltip(el, { boundary: document.body });
+  });
+});
+</script>
+{% endblock %}

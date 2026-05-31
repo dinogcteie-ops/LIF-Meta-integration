@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Quick Entry{% endblock %}
+
+{% block content %}
+<div class="quick-entry-page">
+  <div class="page-header">
+    <div>
+      <div class="page-kicker">Quick Entry</div>
+      <h1 class="page-title" style="font-size:1.6rem">⚡ Add Fast</h1>
+    </div>
+  </div>
+
+  {% if request.query_params.get('success') == 'payment' %}
+  <div class="quick-success">
+    <i class="bi bi-check-circle-fill"></i> Payment added successfully!
+  </div>
+  {% elif request.query_params.get('success') == 'expense' %}
+  <div class="quick-success">
+    <i class="bi bi-check-circle-fill"></i> Expense added successfully!
+  </div>
+  {% endif %}
+
+  <!-- Tabs -->
+  <div class="quick-tabs" id="quickTabs">
+    <button class="quick-tab active" data-target="paymentForm" onclick="switchTab(this)">
+      <i class="bi bi-cash-coin"></i> Payment
+    </button>
+    <button class="quick-tab" data-target="expenseForm" onclick="switchTab(this)">
+      <i class="bi bi-receipt"></i> Expense
+    </button>
+  </div>
+
+  <!-- Payment Form -->
+  <div class="quick-form" id="paymentForm">
+    <form action="/quick/payment" method="post">
+      <div class="form-group mb-3">
+        <label class="form-label">Event</label>
+        <select name="event_id" class="form-select" required>
+          <option value="">Select event...</option>
+          {% for ev in events %}
+          <option value="{{ ev.id }}">{{ ev.name }} — {{ ev.client_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group mb-3">
+        <label class="form-label">Amount (₹)</label>
+        <input type="number" name="amount" class="form-control" step="0.01" min="0" required
+               placeholder="Enter amount" inputmode="decimal" style="font-size:1.3rem; font-weight:700">
+      </div>
+      <div class="form-group mb-3">
+        <label class="form-label">Date</label>
+        <input type="date" name="payment_date" class="form-control" value="{{ today }}">
+      </div>
+      <div class="form-group mb-3">
+        <label class="form-label">Notes (optional)</label>
+        <input type="text" name="notes" class="form-control" placeholder="e.g. UPI, Cash, Advance...">
+      </div>
+      <button type="submit" class="btn btn-gold w-100 py-2">
+        <i class="bi bi-plus-circle"></i> Add Payment
+      </button>
+    </form>
+  </div>
+
+  <!-- Expense Form -->
+  <div class="quick-form" id="expenseForm" style="display:none">
+    <form action="/quick/expense" method="post">
+      <div class="form-group mb-3">
+        <label class="form-label">Category</label>
+        <select name="category_id" class="form-select" required>
+          <option value="">Select category...</option>
+          {% for cat in categories %}
+          <option value="{{ cat.id }}">{{ cat.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group mb-3">
+        <label class="form-label">Amount (₹)</label>
+        <input type="number" name="amount" class="form-control" step="0.01" min="0" required
+               placeholder="Enter amount" inputmode="decimal" style="font-size:1.3rem; font-weight:700">
+      </div>
+      <div class="form-group mb-3">
+        <label class="form-label">Date</label>
+        <input type="date" name="date" class="form-control" value="{{ today }}">
+      </div>
+      <div class="form-group mb-3">
+        <label class="form-label">Event (optional)</label>
+        <select name="event_id" class="form-select">
+          <option value="">General / Company</option>
+          {% for ev in events %}
+          <option value="{{ ev.id }}">{{ ev.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group mb-3">
+        <label class="form-label">Paid To (optional)</label>
+        <input type="text" name="paid_to" class="form-control" placeholder="e.g. vendor name">
+      </div>
+      <div class="form-group mb-3">
+        <label class="form-label">Notes (optional)</label>
+        <input type="text" name="notes" class="form-control" placeholder="Quick note...">
+      </div>
+      <button type="submit" class="btn btn-gold w-100 py-2">
+        <i class="bi bi-plus-circle"></i> Add Expense
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function switchTab(btn) {
+  document.querySelectorAll('.quick-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.quick-form').forEach(f => f.style.display = 'none');
+  btn.classList.add('active');
+  document.getElementById(btn.dataset.target).style.display = 'block';
+}
+</script>
+{% endblock %}

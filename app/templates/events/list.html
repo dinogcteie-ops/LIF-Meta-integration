@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Events{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <div class="page-kicker">Shoots</div>
+    <h1 class="page-title">Events</h1>
+    <p class="page-subtitle">Track quoted value, collections, expenses, and margin for every client event.</p>
+  </div>
+  <div class="toolbar">
+    <input id="eventSearch" type="search" placeholder="Search events..."
+           class="form-control form-control-sm" style="width: min(220px, 100%);"
+           oninput="filterEvents(this.value)">
+    <a href="/events/new" class="btn btn-dark icon-btn"><i class="bi bi-plus-lg"></i>New event</a>
+  </div>
+</header>
+
+<!-- Filter bar (QW1) -->
+<form method="get" action="/events" class="filter-bar mb-3">
+  <div class="filter-group">
+    <label class="filter-label">Status</label>
+    <select name="status" class="form-select form-select-sm">
+      <option value="">All</option>
+      {% for s in statuses %}
+        <option value="{{ s.value }}" {{ 'selected' if filters.status == s.value }}>{{ s.value|capitalize }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="filter-group">
+    <label class="filter-label">Type</label>
+    <select name="event_type" class="form-select form-select-sm">
+      <option value="">All</option>
+      {% for t in event_types %}
+        <option value="{{ t.value }}" {{ 'selected' if filters.event_type == t.value }}>{{ t.value }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="filter-group">
+    <label class="filter-label">From</label>
+    <input type="date" name="date_from" class="form-control form-control-sm" value="{{ filters.date_from }}">
+  </div>
+  <div class="filter-group">
+    <label class="filter-label">To</label>
+    <input type="date" name="date_to" class="form-control form-control-sm" value="{{ filters.date_to }}">
+  </div>
+  <div class="filter-actions">
+    <button type="submit" class="btn btn-sm btn-dark icon-btn"><i class="bi bi-funnel"></i>Apply</button>
+    {% if filters.status or filters.event_type or filters.date_from or filters.date_to %}
+      <a href="/events" class="btn btn-sm btn-outline-secondary">Clear</a>
+    {% endif %}
+  </div>
+</form>
+
+{% if rows %}
+<div class="card section-card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 events-summary-table">
+      <thead>
+        <tr>
+          <th class="ps-4">Event</th>
+          <th>Date</th>
+          <th>Status</th>
+          <th>Type</th>
+          <th class="text-end">Value</th>
+          <th class="text-end">Received</th>
+          <th class="text-end">Pending</th>
+          <th class="text-end">Expenses</th>
+          <th class="text-end">Profit</th>
+          <th class="text-end pe-4">Margin</th>
+        </tr>
+      </thead>
+      <tbody id="eventsBody">
+      {% for r in rows %}
+        <tr class="event-row row-clickable" onclick="location.href='/events/{{ r.event.id }}'">
+          <td class="ps-4">
+            <a href="/events/{{ r.event.id }}" class="event-link">{{ r.event.name }}</a>
+            {% if r.event.client_name %}<div class="client-name">{{ r.event.client_name }}</div>{% endif %}
+          </td>
+          <td class="text-muted small">{{ r.event.event_date or '-' }}</td>
+          <td><span class="status-pill status-{{ r.event.status.value }}">{{ r.event.status.value }}</span></td>
+          <td>
+            {% if r.event.event_type %}
+              <span class="type-chip">{{ r.event.event_type }}</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="text-end money fw-semibold">{{ r.event.quoted_amount|money }}</td>
+          <td class="text-end money">{{ r.income|money }}</td>
+          <td class="text-end money">
+            {% if r.pending_from_client > 0 %}
+              <span class="pending-badge">{{ r.pending_from_client|money }}</span>
+            {% else %}
+              <span class="status-pill status-paid">Paid</span>
+            {% endif %}
+          </td>
+          <td class="text-end money text-danger">{{ r.expense|money }}</td>
+          <td class="text-end money fw-bold {{ 'text-success' if r.profit >= 0 else 'text-danger' }}">{{ r.profit|money }}</td>
+          <td class="text-end pe-4">
+            <span class="profit-pct-badge {{ 'pct-positive' if r.profit_pct >= 20 else ('pct-ok' if r.profit_pct >= 0 else 'pct-negative') }}">
+              {{ r.profit_pct|pct }}
+            </span>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="totals-row">
+          <td class="ps-4 fw-bold" colspan="4">Totals</td>
+          <td class="text-end money fw-bold">{{ rows|sum(attribute='event.quoted_amount')|money }}</td>
+          <td class="text-end money fw-bold">{{ rows|sum(attribute='income')|money }}</td>
+          <td class="text-end money fw-bold">
+            {% set total_pending = rows|sum(attribute='pending_from_client') %}
+            {% if total_pending > 0 %}{{ total_pending|money }}{% else %}-{% endif %}
+          </td>
+          <td class="text-end money fw-bold text-danger">{{ rows|sum(attribute='expense')|money }}</td>
+          <td class="text-end money fw-bold {{ 'text-success' if rows|sum(attribute='profit') >= 0 else 'text-danger' }}">{{ rows|sum(attribute='profit')|money }}</td>
+          <td class="pe-4"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% else %}
+  <div class="empty-state">No events yet. <a href="/events/new">Create your first event</a>.</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterEvents(q) {
+  q = q.toLowerCase().trim();
+  document.querySelectorAll('#eventsBody .event-row').forEach(row => {
+    row.style.display = (!q || row.textContent.toLowerCase().includes(q)) ? '' : 'none';
+  });
+}
+</script>
+{% endblock %}

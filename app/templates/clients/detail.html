@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}{{ client.name }}{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <div class="page-kicker">Client</div>
+    <h1 class="page-title">{{ client.name }}</h1>
+    <div class="d-flex flex-wrap gap-2 mt-2">
+      {% if client.phone %}
+        <span class="contact-chip"><i class="bi bi-telephone"></i> {{ client.phone }}</span>
+      {% endif %}
+      {% if client.email %}
+        <span class="contact-chip"><i class="bi bi-envelope"></i> {{ client.email }}</span>
+      {% endif %}
+      {% if client.address %}
+        <span class="contact-chip"><i class="bi bi-geo-alt"></i> {{ client.address }}</span>
+      {% endif %}
+    </div>
+  </div>
+  <div class="toolbar">
+    <a href="/clients/{{ client.id }}/edit" class="btn btn-outline-dark icon-btn">
+      <i class="bi bi-pencil"></i>Edit
+    </a>
+    <form method="post" action="/clients/{{ client.id }}/delete"
+          onsubmit="return confirm('Delete this client? Their events will not be deleted.')">
+      <button type="submit" class="btn btn-outline-danger btn-sm">
+        <i class="bi bi-trash"></i> Delete
+      </button>
+    </form>
+  </div>
+</header>
+
+<!-- KPI strip -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card stat-card h-100">
+      <div class="card-body">
+        <div class="stat-label">Events</div>
+        <div class="stat-value">{{ event_rows|length }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card h-100" style="--accent:var(--lif-gold);">
+      <div class="card-body">
+        <div class="stat-label">Total billed</div>
+        <div class="stat-value">{{ total_quoted|money }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card h-100" style="--accent:var(--lif-green);">
+      <div class="card-body">
+        <div class="stat-label">Collected</div>
+        <div class="stat-value text-success">{{ total_received|money }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card h-100" style="--accent:var(--lif-red);">
+      <div class="card-body">
+        <div class="stat-label">Pending</div>
+        <div class="stat-value {{ 'text-danger' if total_pending > 0 else 'text-muted' }}">
+          {{ total_pending|money }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if client.notes %}
+<div class="alert alert-info mb-4">
+  <i class="bi bi-sticky"></i> {{ client.notes }}
+</div>
+{% endif %}
+
+<!-- Event history -->
+<div class="card section-card">
+  <div class="section-header">
+    <h5 class="section-title">Event history</h5>
+    <a href="/events/new" class="btn btn-sm btn-outline-dark icon-btn">
+      <i class="bi bi-plus-lg"></i>New event
+    </a>
+  </div>
+  {% if event_rows %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 events-summary-table">
+      <thead>
+        <tr>
+          <th class="ps-4">Event</th>
+          <th>Date</th>
+          <th>Status</th>
+          <th class="text-end">Quoted</th>
+          <th class="text-end">Received</th>
+          <th class="text-end">Pending</th>
+          <th class="text-end pe-4">Profit</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for r in event_rows %}
+        <tr class="row-clickable" onclick="location.href='/events/{{ r.event.id }}'">
+          <td class="ps-4">
+            <a href="/events/{{ r.event.id }}" class="event-link">{{ r.event.name }}</a>
+          </td>
+          <td class="text-muted small">{{ r.event.event_date or '—' }}</td>
+          <td><span class="status-pill status-{{ r.event.status.value }}">{{ r.event.status.value }}</span></td>
+          <td class="text-end money fw-semibold">{{ r.event.quoted_amount|money }}</td>
+          <td class="text-end money">{{ r.income|money }}</td>
+          <td class="text-end money">
+            {% if r.pending_from_client > 0 %}
+              <span class="pending-badge">{{ r.pending_from_client|money }}</span>
+            {% else %}
+              <span class="status-pill status-paid">Paid</span>
+            {% endif %}
+          </td>
+          <td class="text-end pe-4 money fw-bold {{ 'text-success' if r.profit >= 0 else 'text-danger' }}">
+            {{ r.profit|money }}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="totals-row">
+          <td class="ps-4 fw-bold" colspan="3">Totals</td>
+          <td class="text-end money fw-bold">{{ total_quoted|money }}</td>
+          <td class="text-end money fw-bold">{{ total_received|money }}</td>
+          <td class="text-end money fw-bold">
+            {% if total_pending > 0 %}{{ total_pending|money }}{% else %}—{% endif %}
+          </td>
+          <td class="pe-4"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  {% else %}
+    <div class="empty-state">No events linked to this client yet.</div>
+  {% endif %}
+</div>
+{% endblock %}

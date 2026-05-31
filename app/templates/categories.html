@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Categories{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <div class="page-kicker">Setup</div>
+    <h1 class="page-title">Expense categories</h1>
+    <p class="page-subtitle">Keep your studio cost taxonomy clean and set optional monthly budgets per category.</p>
+  </div>
+</header>
+
+<div class="card form-card mb-4">
+  <div class="card-body">
+    <h5 class="mb-3">Add new category</h5>
+    <form method="post" action="/categories" class="row g-2 align-items-end">
+      <div class="col-md-5">
+        <label class="form-label small mb-1">Name</label>
+        <input name="name" class="form-control" placeholder="Category name" required>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Scope</label>
+        <select name="scope" class="form-select">
+          {% for s in scopes %}<option value="{{ s.value }}">{{ s.value }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small mb-1">
+          Monthly budget
+          <i class="bi bi-info-circle text-muted" data-bs-toggle="tooltip"
+             title="Optional target. Reports page shows variance per category."></i>
+        </label>
+        <input type="number" name="monthly_budget" class="form-control"
+               min="0" step="100" placeholder="0">
+      </div>
+      <div class="col-md-2"><button class="btn btn-dark w-100 icon-btn justify-content-center"><i class="bi bi-plus-lg"></i>Add</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="row g-3">
+{% for scope, cats in grouped.items() %}
+  <div class="col-lg-4">
+    <div class="card section-card h-100">
+      <div class="section-header">
+        <h5 class="section-title text-capitalize">{{ scope }} categories</h5>
+      </div>
+      <div class="card-body">
+        {% for c in cats %}
+          <form method="post" action="/categories/{{ c.id }}" class="cat-row row g-2 align-items-center mb-2">
+            <div class="col-5">
+              <input name="name" class="form-control form-control-sm" value="{{ c.name }}">
+            </div>
+            <div class="col-3">
+              <div class="input-group input-group-sm">
+                <input type="number" name="monthly_budget" class="form-control form-control-sm budget-input"
+                       min="0" step="100" value="{{ c.monthly_budget | int if c.monthly_budget else '' }}"
+                       placeholder="Budget" title="Monthly budget">
+              </div>
+            </div>
+            <div class="col-2">
+              <div class="form-check">
+                <input type="checkbox" name="is_active" class="form-check-input" id="active-{{ c.id }}"
+                       {{ 'checked' if c.is_active else '' }}>
+                <label for="active-{{ c.id }}" class="form-check-label small">On</label>
+              </div>
+            </div>
+            <div class="col-2 text-end">
+              <button class="btn btn-sm btn-outline-dark" title="Save"><i class="bi bi-check2"></i></button>
+            </div>
+          </form>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+{% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Bootstrap tooltips
+  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+</script>
+{% endblock %}

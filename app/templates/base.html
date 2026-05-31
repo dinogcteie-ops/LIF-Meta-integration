@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#141414">
+  <title>{% block title %}Life in Frame{% endblock %} - Studio Tracker</title>
+  <link rel="stylesheet" href="/static/vendor/bootstrap/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/static/css/style.css?v=zoho1">
+  {% block head %}{% endblock %}
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- ── Mobile top bar ─────────────────────────────────────────── -->
+  <header class="mobile-topbar">
+    <button class="mobile-menu-btn" id="sidebarToggle" aria-label="Toggle menu">
+      <i class="bi bi-list"></i>
+    </button>
+    <div class="mobile-brand">
+      <img src="/static/logo.avif" alt="LIF" onerror="this.style.display='none'" class="mobile-logo">
+      <span class="mobile-brand-name">{{ studio_name }}</span>
+    </div>
+    <a href="/quick" class="mobile-quick-btn" title="Quick Entry">
+      <i class="bi bi-plus-circle-fill"></i>
+    </a>
+  </header>
+
+  <!-- ── Sidebar overlay (mobile) ──────────────────────────────── -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- ── Sidebar ─────────────────────────────────────────────────── -->
+  <aside class="app-sidebar" id="appSidebar">
+    <div class="sidebar-brand">
+      <img src="/static/logo.avif" alt="Life in Frame" onerror="this.style.display='none'">
+      <div class="sidebar-brand-text">
+        <div class="sidebar-brand-name">{{ studio_name }}</div>
+        <div class="sidebar-brand-sub">{{ studio_sub }}</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="/dashboard"
+         class="sidebar-link {% if request.url.path == '/dashboard' %}active{% endif %}">
+        <i class="bi bi-speedometer2"></i><span>Dashboard</span>
+      </a>
+      <a href="/events"
+         class="sidebar-link {% if '/events' in request.url.path and '/clients' not in request.url.path %}active{% endif %}">
+        <i class="bi bi-camera"></i><span>Events</span>
+      </a>
+      <a href="/clients"
+         class="sidebar-link {% if '/clients' in request.url.path %}active{% endif %}">
+        <i class="bi bi-people"></i><span>Clients</span>
+      </a>
+      <a href="/leads"
+         class="sidebar-link {% if '/leads' in request.url.path %}active{% endif %}">
+        <i class="bi bi-funnel"></i><span>Leads</span>
+      </a>
+      <a href="/meta"
+         class="sidebar-link {% if '/meta' in request.url.path %}active{% endif %}">
+        <i class="bi bi-megaphone"></i><span>Meta Ads</span>
+      </a>
+      <a href="/payees"
+         class="sidebar-link {% if '/payees' in request.url.path %}active{% endif %}">
+        <i class="bi bi-person-badge"></i><span>Payees</span>
+      </a>
+      <a href="/calendar"
+         class="sidebar-link {% if '/calendar' in request.url.path %}active{% endif %}">
+        <i class="bi bi-calendar3"></i><span>Calendar</span>
+      </a>
+      <a href="/receivables"
+         class="sidebar-link {% if '/receivables' in request.url.path %}active{% endif %}">
+        <i class="bi bi-cash-coin"></i><span>Receivables</span>
+        {% if sidebar_badges and sidebar_badges.receivables_overdue %}
+          <span class="sidebar-badge" title="Items overdue">{{ sidebar_badges.receivables_overdue }}</span>
+        {% endif %}
+      </a>
+      <a href="/payables"
+         class="sidebar-link {% if '/payables' in request.url.path %}active{% endif %}">
+        <i class="bi bi-cash-stack"></i><span>Payables</span>
+        {% if sidebar_badges and sidebar_badges.payables_overdue %}
+          <span class="sidebar-badge" title="Items overdue">{{ sidebar_badges.payables_overdue }}</span>
+        {% endif %}
+      </a>
+      <a href="/expenses"
+         class="sidebar-link {% if request.url.path == '/expenses' or (request.url.path.startswith('/expenses') and 'analytics' not in request.url.path) %}active{% endif %}">
+        <i class="bi bi-receipt"></i><span>Expenses</span>
+      </a>
+      <a href="/expenses/analytics"
+         class="sidebar-link {% if 'expenses/analytics' in request.url.path %}active{% endif %}">
+        <i class="bi bi-bar-chart-line"></i><span>Exp. Analytics</span>
+      </a>
+      <a href="/categories"
+         class="sidebar-link {% if '/categories' in request.url.path %}active{% endif %}">
+        <i class="bi bi-tags"></i><span>Categories</span>
+      </a>
+      <a href="/workshop"
+         class="sidebar-link {% if '/workshop' in request.url.path %}active{% endif %}">
+        <i class="bi bi-camera-reels"></i><span>Workshop</span>
+      </a>
+      <a href="/reports"
+         class="sidebar-link {% if '/reports' in request.url.path %}active{% endif %}">
+        <i class="bi bi-graph-up-arrow"></i><span>Reports</span>
+      </a>
+      <a href="/quick"
+         class="sidebar-link {% if '/quick' in request.url.path %}active{% endif %}">
+        <i class="bi bi-lightning"></i><span>Quick Entry</span>
+      </a>
+      <a href="/settings"
+         class="sidebar-link {% if request.url.path in ['/settings', '/audit'] %}active{% endif %}">
+        <i class="bi bi-gear"></i><span>Settings</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <form action="/logout" method="post">
+        <button type="submit" class="sidebar-logout">
+          <i class="bi bi-box-arrow-right"></i><span>Logout</span>
+        </button>
+      </form>
+    </div>
+  </aside>
+
+  <!-- ── Main content ───────────────────────────────────────────── -->
+  <div class="app-content">
+
+    <!-- ── Top bar (desktop) ──────────────────────────────────────────── -->
+    <header class="app-topbar">
+      <label class="topbar-search" for="globalSearch">
+        <i class="bi bi-search"></i>
+        <input type="text" id="globalSearch" placeholder="Search this view…" autocomplete="off">
+      </label>
+      <div class="topbar-spacer"></div>
+      <div class="topbar-actions">
+        <a href="/quick" class="topbar-btn" title="Quick entry"><i class="bi bi-plus-lg"></i></a>
+        <a href="/settings" class="topbar-btn" title="Settings"><i class="bi bi-gear"></i></a>
+        <div class="topbar-profile">
+          <span class="topbar-avatar">{{ (studio_name or 'L')[:1]|upper }}</span>
+          <span class="topbar-username d-none d-lg-inline">{{ studio_name }}</span>
+          <form action="/logout" method="post" class="m-0">
+            <button type="submit" class="topbar-logout" title="Log out"><i class="bi bi-box-arrow-right"></i></button>
+          </form>
+        </div>
+      </div>
+    </header>
+
+    <main class="content-inner">
+      {% set flash = request.session.pop('flash', None) if request.session else None %}
+      {% if flash %}
+        <div class="alert alert-info alert-dismissible fade show lif-alert" role="alert">
+          <i class="bi bi-info-circle me-2"></i>{{ flash }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endif %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+</div>
+
+<!-- ── Mobile bottom nav ──────────────────────────────────────── -->
+<nav class="mobile-bottom-nav">
+  <a href="/dashboard" class="bottom-nav-item {% if request.url.path == '/dashboard' %}active{% endif %}">
+    <i class="bi bi-speedometer2"></i>
+    <span>Home</span>
+  </a>
+  <a href="/events" class="bottom-nav-item {% if '/events' in request.url.path %}active{% endif %}">
+    <i class="bi bi-camera"></i>
+    <span>Events</span>
+  </a>
+  <a href="/quick" class="bottom-nav-item bottom-nav-center {% if '/quick' in request.url.path %}active{% endif %}">
+    <i class="bi bi-plus-circle-fill"></i>
+    <span>Add</span>
+  </a>
+  <a href="/expenses" class="bottom-nav-item {% if '/expenses' in request.url.path %}active{% endif %}">
+    <i class="bi bi-receipt"></i>
+    <span>Expenses</span>
+  </a>
+  <a href="/reports" class="bottom-nav-item {% if '/reports' in request.url.path %}active{% endif %}">
+    <i class="bi bi-graph-up"></i>
+    <span>Reports</span>
+  </a>
+</nav>
+
+<script src="/static/vendor/bootstrap/bootstrap.bundle.min.js"></script>
+<script src="/static/vendor/chartjs/chart.umd.min.js"></script>
+<script src="/static/vendor/htmx/htmx.min.js"></script>
+<script src="/static/js/charts.js"></script>
+<script src="/static/js/app.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

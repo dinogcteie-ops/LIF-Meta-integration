@@ -1,0 +1,32 @@
+# Render Blueprint — runs the FastAPI app (Netlify proxies the public domain to it).
+# The database lives in Supabase, so there is no Render-managed Postgres here.
+services:
+  - type: web
+    name: lif-crm
+    runtime: docker
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /healthz
+    envVars:
+      # App auth
+      - key: APP_PASSWORD
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: CURRENCY
+        value: INR
+      # Supabase Postgres — paste the *pooled* connection string
+      # (…pooler.supabase.com:6543/postgres). sync:false keeps it secret.
+      - key: DATABASE_URL
+        sync: false
+      # Meta Ads integration
+      - key: META_APP_SECRET
+        sync: false
+      - key: META_VERIFY_TOKEN
+        sync: false
+      - key: META_PAGE_ACCESS_TOKEN
+        sync: false
+      - key: META_AD_ACCOUNT_ID
+        sync: false
+      - key: META_GRAPH_VERSION
+        value: v19.0

@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if expense else 'New' }} expense{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <div class="page-kicker">Cost record</div>
+    <h1 class="page-title">{{ 'Edit expense' if expense else 'New expense' }}</h1>
+    <p class="page-subtitle">Record production, company, and personal costs with payment status.</p>
+  </div>
+</header>
+
+<form method="post" action="{{ '/expenses/' ~ expense.id if expense else '/expenses' }}"
+      class="card form-card" id="expense-form">
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-3">
+        <label class="form-label">Date</label>
+        <input type="date" name="date" class="form-control"
+               value="{{ expense.date if expense else '' }}" required>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Scope</label>
+        <select name="scope" id="scope-select" class="form-select">
+          {% for s in scopes %}
+            <option value="{{ s.value }}" {{ 'selected' if expense and expense.scope == s else ('selected' if not expense and s.value == 'event' else '') }}>{{ s.value }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-6" id="event-wrap">
+        <label class="form-label">Event</label>
+        <select name="event_id" class="form-select">
+          <option value="">None</option>
+          {% for e in events %}
+            <option value="{{ e.id }}"
+              {{ 'selected' if expense and expense.event_id == e.id else ('selected' if not expense and preselect_event_id == e.id else '') }}>
+              {{ e.name }}{% if e.client_name %} ({{ e.client_name }}){% endif %}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Category</label>
+        <select name="category_id" class="form-select" required>
+          {% for c in categories %}
+            <option value="{{ c.id }}" data-scope="{{ c.scope.value }}"
+              {{ 'selected' if expense and expense.category_id == c.id else '' }}>
+              {{ c.name }} ({{ c.scope.value }})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Amount ({{ currency }})</label>
+        <input type="number" step="0.01" name="amount" class="form-control" required
+               value="{{ expense.amount if expense else '' }}">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Status</label>
+        <select name="payment_status" id="status-select" class="form-select">
+          {% for s in statuses %}
+            <option value="{{ s.value }}" {{ 'selected' if expense and expense.payment_status == s else ('selected' if not expense and s.value == 'paid' else '') }}>{{ s.value }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4" id="paid-amount-wrap">
+        <label class="form-label">Paid amount</label>
+        <input type="number" step="0.01" name="paid_amount" class="form-control"
+               value="{{ expense.paid_amount if expense else 0 }}">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Payment type</label>
+        <select name="payment_type" class="form-select">
+          <option value="">— Select —</option>
+          {% if payment_types %}{% for pt in payment_types %}
+            <option value="{{ pt.value }}" {{ 'selected' if expense and expense.payment_type == pt.value else '' }}>{{ pt.value }}</option>
+          {% endfor %}{% endif %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Paid to</label>
+        <input name="paid_to" id="paidToInput" class="form-control"
+               list="payeeDatalist" autocomplete="off"
+               value="{{ expense.paid_to if expense else '' }}"
+               placeholder="Vendor / freelancer name">
+        <input type="hidden" name="payee_id" id="payeeIdInput"
+               value="{{ expense.payee_id if expense and expense.payee_id else '' }}">
+        <datalist id="payeeDatalist">
+          {% if payees %}{% for p in payees %}
+            <option value="{{ p.name }}" data-id="{{ p.id }}" data-type="{{ p.payee_type }}">{{ p.payee_type }}</option>
+          {% endfor %}{% endif %}
+        </datalist>
+        {% if expense and expense.payee_id %}
+          <div class="form-text">
+            <i class="bi bi-link-45deg"></i>
+            <a href="/payees/{{ expense.payee_id }}" class="text-muted small">View payee record</a>
+          </div>
+        {% endif %}
+      </div>
+      <div class="col-md-12">
+        <label class="form-label">Notes</label>
+        <textarea name="notes" class="form-control" rows="2">{{ expense.notes if expense else '' }}</textarea>
+      </div>
+
+      <!-- Recurring template toggle -->
+      <div class="col-md-12">
+        <div class="form-check mt-1">
+          <input class="form-check-input" type="checkbox" name="is_recurring" id="recurringCheck"
+                 value="true" {{ 'checked' if expense and expense.is_recurring else '' }}>
+          <label class="form-check-label" for="recurringCheck">
+            Repeat monthly <span class="text-muted small">(treat as a template; generate copies from Settings)</span>
+          </label>
+        </div>
+      </div>
+      <div class="col-md-3" id="recurringDayWrap" style="display:none">
+        <label class="form-label">Day of month</label>
+        <input type="number" name="recurring_day" id="recurringDayInput"
+               class="form-control" min="1" max="28" step="1"
+               value="{{ expense.recurring_day if expense and expense.recurring_day else 1 }}"
+               placeholder="1">
+        <div class="form-text">Day to use when generating (1–28).</div>
+      </div>
+    </div>
+    <div class="d-flex justify-content-between mt-4">
+      <a href="/expenses" class="btn btn-link">Cancel</a>
+      <button class="btn btn-dark icon-btn"><i class="bi bi-check2"></i>{{ 'Save' if expense else 'Create expense' }}</button>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const scope = document.getElementById('scope-select');
+  const eventWrap = document.getElementById('event-wrap');
+  const status = document.getElementById('status-select');
+  const paidWrap = document.getElementById('paid-amount-wrap');
+  function refresh() {
+    eventWrap.style.display = scope.value === 'event' ? '' : 'none';
+    paidWrap.style.display = status.value === 'partial' ? '' : 'none';
+  }
+  scope.addEventListener('change', refresh);
+  status.addEventListener('change', refresh);
+  refresh();
+
+  // Recurring day visibility
+  (function() {
+    const check = document.getElementById('recurringCheck');
+    const wrap  = document.getElementById('recurringDayWrap');
+    if (!check) return;
+    function toggleDay() { wrap.style.display = check.checked ? '' : 'none'; }
+    check.addEventListener('change', toggleDay);
+    toggleDay();
+  })();
+
+  // Payee autocomplete — auto-fill hidden payee_id when a known name is selected
+  (function() {
+    const paidToInput = document.getElementById('paidToInput');
+    const payeeIdInput = document.getElementById('payeeIdInput');
+    if (!paidToInput) return;
+    const opts = [...document.querySelectorAll('#payeeDatalist option')];
+    paidToInput.addEventListener('input', () => {
+      const val = paidToInput.value.trim().toLowerCase();
+      const match = opts.find(o => o.value.trim().toLowerCase() === val);
+      payeeIdInput.value = match ? (match.dataset.id || '') : '';
+    });
+  })();
+</script>
+{% endblock %}

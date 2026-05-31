@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+{% block title %}Expense Analytics{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <div class="page-kicker">Spending breakdown</div>
+    <h1 class="page-title">Expense Analytics</h1>
+    <p class="page-subtitle">Where the money goes — by scope, category, payment method, and trend.</p>
+  </div>
+  <div class="toolbar">
+    <a href="/expenses" class="btn btn-outline-dark icon-btn"><i class="bi bi-list-ul"></i>All expenses</a>
+    <a href="/expenses/new" class="btn btn-dark icon-btn"><i class="bi bi-plus-lg"></i>New expense</a>
+  </div>
+</header>
+
+<!-- ═══ Summary cards ═══ -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card stat-card h-100">
+      <div class="card-body">
+        <div class="stat-label">Total spent</div>
+        <div class="stat-value">{{ analytics.grand_total|money }}</div>
+        <div class="stat-sub">All expenses (all time)</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card h-100" style="--accent:var(--lif-green)">
+      <div class="card-body">
+        <div class="stat-label">Paid out</div>
+        <div class="stat-value text-success">{{ analytics.grand_paid|money }}</div>
+        <div class="stat-sub">Cash / settled</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card h-100" style="--accent:var(--lif-red)">
+      <div class="card-body">
+        <div class="stat-label">Pending</div>
+        <div class="stat-value text-danger">{{ analytics.grand_pending|money }}</div>
+        <div class="stat-sub">Not yet paid</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card h-100" style="--accent:var(--lif-amber)">
+      <div class="card-body">
+        <div class="stat-label">Partial outstanding</div>
+        <div class="stat-value text-warning">{{ analytics.grand_partial_outstanding|money }}</div>
+        <div class="stat-sub">Unpaid portion of partial</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Scope breakdown ═══ -->
+<div class="row g-3 mb-4">
+  {% set scopes = [('event','bi-camera','lif-blue'),('company','bi-building','lif-olive'),('personal','bi-person','lif-amber')] %}
+  {% for scope_val, icon, color in scopes %}
+    {% set total = analytics.by_scope.get(scope_val, 0) %}
+    {% set paid  = analytics.by_scope_paid.get(scope_val, 0) %}
+    {% set pct   = (total / grand * 100)|round(1) if grand > 0 else 0 %}
+  <div class="col-md-4">
+    <div class="card section-card h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <div class="kpi-card-icon {{ color }}"><i class="bi {{ icon }}"></i></div>
+          <div>
+            <div class="fw-semibold text-capitalize">{{ scope_val }}</div>
+            <div class="text-muted small">{{ pct }}% of total</div>
+          </div>
+          <div class="ms-auto text-end">
+            <div class="fw-bold fs-5">{{ total|money }}</div>
+          </div>
+        </div>
+        <div class="progress mb-2" style="height:6px">
+          <div class="progress-bar" style="width:{{ pct }}%; background:var(--{{ color }}, var(--lif-blue))"></div>
+        </div>
+        <div class="d-flex justify-content-between small text-muted">
+          <span><i class="bi bi-check-circle me-1 text-success"></i>{{ paid|money }} paid</span>
+          <span><i class="bi bi-clock me-1 text-danger"></i>{{ (total - paid)|round(2)|money }} unpaid</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- ═══ Top Categories ═══ -->
+<div class="card section-card mb-4">
+  <div class="section-header">
+    <h5 class="section-title"><i class="bi bi-tags me-2"></i>Spending by category</h5>
+    <a href="/categories" class="btn btn-sm btn-outline-secondary icon-btn"><i class="bi bi-pencil"></i>Edit categories</a>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th class="ps-4">Category</th>
+          <th>Scope</th>
+          <th class="text-end">Total</th>
+          <th class="text-end">Paid</th>
+          <th class="text-end">Pending</th>
+          <th class="text-end">Txns</th>
+          <th>Budget use</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for row in analytics.by_category %}
+        <tr>
+          <td class="ps-4 fw-semibold">{{ row.name }}</td>
+          <td>
+            <span class="badge bg-secondary bg-opacity-10 text-secondary border">{{ row.scope }}</span>
+          </td>
+          <td class="text-end money">{{ row.total_amount|money }}</td>
+          <td class="text-end money text-success">{{ row.paid_amount|money }}</td>
+          <td class="text-end money {% if row.pending_amount > 0 %}text-danger{% else %}text-muted{% endif %}">{{ row.pending_amount|money }}</td>
+          <td class="text-end text-muted small">{{ row.txn_count }}</td>
+          <td style="min-width:120px">
+            {% if row.monthly_budget > 0 %}
+              <div class="d-flex align-items-center gap-2">
+                <div class="progress flex-grow-1" style="height:6px">
+                  <div class="progress-bar {% if row.budget_pct > 100 %}bg-danger{% elif row.budget_pct > 80 %}bg-warning{% else %}bg-success{% endif %}"
+                       style="width:{{ [row.budget_pct, 100]|min }}%"></div>
+                </div>
+                <span class="small {% if row.budget_pct > 100 %}text-danger fw-bold{% else %}text-muted{% endif %}">{{ row.budget_pct }}%</span>
+              </div>
+              <div class="text-muted" style="font-size:.7rem">budget {{ row.monthly_budget|money }}/mo</div>
+            {% else %}
+              <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7" class="empty-state">No expenses recorded yet.</td></tr>
+      {% endfor %}
+      </tbody>
+      {% if analytics.by_category %}
+      <tfoot>
+        <tr>
+          <th colspan="2" class="ps-4 text-end">Total</th>
+          <th class="text-end money">{{ analytics.grand_total|money }}</th>
+          <th class="text-end money text-success">{{ analytics.grand_paid|money }}</th>
+          <th class="text-end money text-danger">{{ analytics.grand_pending|money }}</th>
+          <th colspan="2"></th>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+
+<!-- ═══ Payment method + Monthly trend ═══ -->
+<div class="row g-3 mb-4">
+
+  <!-- Payment method breakdown -->
+  <div class="col-md-5">
+    <div class="card section-card h-100">
+      <div class="section-header">
+        <h5 class="section-title"><i class="bi bi-credit-card me-2"></i>Payment method</h5>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr><th class="ps-4">Method</th><th class="text-end">Amount</th><th class="text-end pe-4">Txns</th></tr>
+          </thead>
+          <tbody>
+          {% for pt_name, pt_amt, pt_count in analytics.by_payment_type %}
+            {% set pt_pct = (pt_amt / grand * 100)|round(1) if grand > 0 else 0 %}
+            <tr>
+              <td class="ps-4">
+                <div class="fw-semibold small">{{ pt_name }}</div>
+                <div class="progress mt-1" style="height:4px">
+                  <div class="progress-bar bg-secondary" style="width:{{ pt_pct }}%"></div>
+                </div>
+              </td>
+              <td class="text-end money">{{ pt_amt|money }}</td>
+              <td class="text-end text-muted small pe-4">{{ pt_count }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="3" class="empty-state">No payment types recorded.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Monthly trend (last 6 months) -->
+  <div class="col-md-7">
+    <div class="card section-card h-100">
+      <div class="section-header">
+        <h5 class="section-title"><i class="bi bi-calendar3 me-2"></i>Monthly trend (last 6 months)</h5>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th class="ps-4">Month</th>
+              <th class="text-end">
+                <span class="badge" style="background:rgba(71,111,147,.15);color:var(--lif-blue)">Event</span>
+              </th>
+              <th class="text-end">
+                <span class="badge" style="background:rgba(115,130,80,.15);color:var(--lif-olive)">Company</span>
+              </th>
+              <th class="text-end">
+                <span class="badge" style="background:rgba(201,168,76,.2);color:var(--lif-gold-dark)">Personal</span>
+              </th>
+              <th class="text-end pe-4">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for label, ev_amt, co_amt, pe_amt in analytics.monthly_trend %}
+            {% set row_total = ev_amt + co_amt + pe_amt %}
+            <tr>
+              <td class="ps-4 fw-semibold">{{ label }}</td>
+              <td class="text-end money small">{% if ev_amt > 0 %}{{ ev_amt|money }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+              <td class="text-end money small">{% if co_amt > 0 %}{{ co_amt|money }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+              <td class="text-end money small">{% if pe_amt > 0 %}{{ pe_amt|money }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+              <td class="text-end money fw-semibold pe-4">{% if row_total > 0 %}{{ row_total|round(2)|money }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

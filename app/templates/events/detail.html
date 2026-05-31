@@ -1,0 +1,498 @@
+{% extends "base.html" %}
+{% block title %}{{ event.name }}{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <a href="/events" class="back-link icon-btn"><i class="bi bi-arrow-left"></i>All events</a>
+    <h1 class="page-title mt-2">{{ event.name }}</h1>
+    <p class="page-subtitle">
+      {% if event.client_name %}{{ event.client_name }} / {% endif %}
+      {{ event.event_date or 'No event date' }}
+      <span class="badge bg-secondary ms-2">{{ event.status.value }}</span>
+    </p>
+  </div>
+  <div class="toolbar">
+    <a href="/expenses/new?event_id={{ event.id }}" class="btn btn-dark icon-btn"><i class="bi bi-plus-lg"></i>Add expense</a>
+  </div>
+</header>
+
+{% if event.event_type or event.location or event.referral_source %}
+<div class="event-meta-row mb-3">
+  {% if event.event_type %}
+    <span class="meta-chip"><i class="bi bi-camera2"></i>{{ event.event_type }}</span>
+  {% endif %}
+  {% if event.location %}
+    <span class="meta-chip"><i class="bi bi-geo-alt"></i>{{ event.location }}</span>
+  {% endif %}
+  {% if event.referral_source %}
+    <span class="meta-chip"><i class="bi bi-person-check"></i>{{ event.referral_source }}</span>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="row g-3 mb-4">
+  <div class="col-12 col-sm-6 col-lg-2">
+    <div class="card stat-card h-100">
+      <div class="card-body">
+        <div class="stat-label">Event value</div>
+        <div class="stat-value">{{ event.quoted_amount|money }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-6 col-lg-2">
+    <div class="card stat-card h-100" style="--accent: var(--lif-green);">
+      <div class="card-body">
+        <div class="stat-label">Received</div>
+        <div class="stat-value text-success">{{ ep.income|money }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-6 col-lg-2">
+    <div class="card stat-card h-100" style="--accent: {{ 'var(--lif-red)' if ep.pending_from_client > 0 else 'var(--lif-green)' }};">
+      <div class="card-body">
+        <div class="stat-label">Client pending</div>
+        <div class="stat-value {{ 'text-danger' if ep.pending_from_client > 0 else 'text-success' }}">
+          {{ ep.pending_from_client|money if ep.pending_from_client > 0 else 'Nil' }}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-6 col-lg-2">
+    <div class="card stat-card h-100" style="--accent: var(--lif-red);">
+      <div class="card-body">
+        <div class="stat-label">Expenses</div>
+        <div class="stat-value text-danger">{{ ep.expense|money }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-6 col-lg-2">
+    <div class="card stat-card h-100" style="--accent: {{ 'var(--lif-green)' if ep.profit >= 0 else 'var(--lif-red)' }};">
+      <div class="card-body">
+        <div class="stat-label">Profit</div>
+        <div class="stat-value {{ 'text-success' if ep.profit >= 0 else 'text-danger' }}">{{ ep.profit|money }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-6 col-lg-2">
+    <div class="card stat-card h-100">
+      <div class="card-body">
+        <div class="stat-label">Margin</div>
+        <div class="stat-value" style="color: var(--lif-gold-dark);">{{ ep.profit_pct|pct }}</div>
+        <div class="stat-sub">on received income</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-5">
+    <div class="card h-100 chart-panel">
+      <div class="card-body">
+        <h5 class="mb-3">Expense mix</h5>
+        {% if cat_chart.data %}
+          <div class="row align-items-center g-3">
+            <div class="col-sm-6">
+              <canvas id="catChart"></canvas>
+            </div>
+            <div class="col-sm-6">
+              <div class="cat-legend">
+                {% for label, amount in cat_chart.labels|zip(cat_chart.data) %}
+                  <div class="cat-legend-row">
+                    <span class="cat-dot" data-idx="{{ loop.index0 }}"></span>
+                    <div class="cat-legend-info">
+                      <div class="cat-legend-name">{{ label }}</div>
+                      <div class="cat-legend-amount">{{ amount|money }}</div>
+                    </div>
+                    <div class="cat-legend-pct-group">
+                      <div class="cat-legend-pct">{{ ((amount / ep.expense * 100) | round(1)) if ep.expense > 0 else 0 }}%</div>
+                      <div class="cat-legend-pct-event text-muted" style="font-size: 0.7rem;">{{ ((amount / event.quoted_amount * 100) | round(1)) if event.quoted_amount > 0 else 0 }}% of event</div>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        {% else %}
+          <p class="text-muted small mb-0">No expenses logged yet.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <div class="card h-100 section-card">
+      <div class="section-header">
+        <h5 class="section-title">Payments received</h5>
+      </div>
+      <div class="card-body">
+        {% if event.payments %}
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-3">
+              <thead><tr><th>Date</th><th class="text-end">Amount</th><th>Notes</th><th></th></tr></thead>
+              <tbody>
+              {% for p in event.payments %}
+                <tr>
+                  <td>{{ p.payment_date }}</td>
+                  <td class="text-end money fw-bold text-success">{{ p.amount|money }}</td>
+                  <td class="text-muted small">{{ p.notes or '' }}</td>
+                  <td class="text-end">
+                    <form method="post" action="/events/{{ event.id }}/payments/{{ p.id }}/delete"
+                          class="delete-payment-form">
+                      <button type="button" class="btn btn-link p-0 small text-danger delete-payment-btn"
+                              data-amount="{{ p.amount | money }}" data-date="{{ p.payment_date }}">
+                        Delete
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+              </tbody>
+              <tfoot>
+                <tr><td class="fw-bold">Total received</td><td class="text-end money fw-bold text-success">{{ ep.income|money }}</td><td colspan="2"></td></tr>
+              </tfoot>
+            </table>
+          </div>
+        {% else %}
+          <p class="text-muted small mb-3">No payments recorded yet.</p>
+        {% endif %}
+
+        <div class="add-section-label">Add payment</div>
+        <form method="post" action="/events/{{ event.id }}/payments" class="row g-2 mt-1">
+          <div class="col-md-4"><input type="date" name="payment_date" class="form-control form-control-sm" required></div>
+          <div class="col-md-3"><input type="number" step="0.01" name="amount" class="form-control form-control-sm" placeholder="Amount" required></div>
+          <div class="col-md-3"><input name="notes" class="form-control form-control-sm" placeholder="Notes"></div>
+          <div class="col-md-2"><button class="btn btn-dark btn-sm w-100">Add</button></div>
+        </form>
+
+        {% if schedule_rows %}
+        <div class="schedule-panel mt-4">
+          <div class="add-section-label">Payment schedule</div>
+          <table class="table table-sm align-middle mb-0 schedule-table">
+            <thead>
+              <tr>
+                <th>Due date</th>
+                <th class="text-end">Amount</th>
+                <th>Label</th>
+                <th class="text-end">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for s in schedule_rows %}
+              <tr>
+                <td>{{ s.date }}</td>
+                <td class="text-end money">{{ s.amount|money }}</td>
+                <td class="text-muted small">{{ s.label or '—' }}</td>
+                <td class="text-end">
+                  {% if s.is_paid %}
+                    <span class="schedule-dot schedule-paid" title="Cumulative received: {{ s.cumulative_received|money }}"></span>
+                    <span class="small text-success">Paid</span>
+                  {% elif s.is_overdue %}
+                    <span class="schedule-dot schedule-overdue" title="Cumulative received: {{ s.cumulative_received|money }}"></span>
+                    <span class="small text-danger">Overdue</span>
+                  {% else %}
+                    <span class="schedule-dot schedule-pending" title="Cumulative received: {{ s.cumulative_received|money }}"></span>
+                    <span class="small text-muted">Pending</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card section-card mb-4">
+  <div class="section-header">
+    <div>
+      <h5 class="section-title">Event expenses</h5>
+      <div class="text-muted small mt-1">Vendor and production costs tied to this shoot.</div>
+    </div>
+    <a href="/expenses/new?event_id={{ event.id }}" class="btn btn-dark btn-sm icon-btn"><i class="bi bi-plus-lg"></i>Add expense</a>
+  </div>
+  {% if event.expenses %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th class="ps-4">Category</th>
+            <th>Date</th>
+            <th>Paid to</th>
+            <th>Status</th>
+            <th class="text-end">Amount</th>
+            <th class="text-end">Paid</th>
+            <th class="text-end">% of expenses</th>
+            <th class="text-end pe-4">% of event</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for e in event.expenses | sort(attribute='amount', reverse=True) %}
+          <tr>
+            <td class="ps-4 fw-bold">{{ e.category.name if e.category else '-' }}</td>
+            <td class="text-muted small">{{ e.date }}</td>
+            <td class="text-muted small">{{ e.paid_to or '-' }}</td>
+            <td>
+              <span class="status-pill
+                {% if e.payment_status.value == 'paid' %}status-paid
+                {% elif e.payment_status.value == 'partial' %}status-partial
+                {% else %}status-pending{% endif %}">
+                {{ e.payment_status.value }}
+              </span>
+            </td>
+            <td class="text-end money">{{ e.amount|money }}</td>
+            <td class="text-end money">{{ e.paid_amount|money }}</td>
+            <td class="text-end">
+              {% if ep.expense > 0 %}
+                <div class="pct-bar-wrap">
+                  <div class="pct-bar-track"><div class="pct-bar-fill" style="width: {{ [(e.amount / ep.expense * 100), 100]|min|round(1) }}%"></div></div>
+                  <span class="pct-bar-label">{{ (e.amount / ep.expense * 100)|round(1) }}%</span>
+                </div>
+              {% endif %}
+            </td>
+            <td class="text-end pe-4">
+              {% if event.quoted_amount > 0 %}
+                <span class="text-muted">{{ (e.amount / event.quoted_amount * 100)|round(1) }}%</span>
+              {% endif %}
+            </td>
+            <td class="text-end pe-3">
+              <a href="/expenses/{{ e.id }}/edit" class="action-link">Edit</a>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td class="ps-4 fw-bold" colspan="4">Total</td>
+            <td class="text-end money fw-bold text-danger">{{ ep.expense|money }}</td>
+            <td class="text-end money fw-bold">{{ event.expenses|sum(attribute='paid_amount')|money }}</td>
+            <td class="text-end fw-bold text-muted">{% if event.quoted_amount > 0 %}{{ (ep.expense / event.quoted_amount * 100)|round(1) }}%{% endif %}</td>
+            <td colspan="2"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-state">No expenses logged. <a href="/expenses/new?event_id={{ event.id }}">Add the first one</a>.</div>
+  {% endif %}
+</div>
+
+<!-- Delivery stepper (only shown when delivery_status is set) -->
+{% if event.delivery_status %}
+{% set ds = event.delivery_status %}
+{% set stage_order = ['shooting_done', 'editing', 'review', 'delivered'] %}
+{% set current_idx = stage_order.index(ds) if ds in stage_order else -1 %}
+<div class="card lif-card mb-4">
+  <div class="card-body pb-3">
+    <div class="delivery-stepper">
+      {% set stage_labels = {'shooting_done': 'Shooting done', 'editing': 'Editing', 'review': 'Review', 'delivered': 'Delivered'} %}
+      {% for key in stage_order %}
+        {% set idx = loop.index0 %}
+        <div class="delivery-step {{ 'done' if idx < current_idx else '' }} {{ 'current' if idx == current_idx else '' }}">
+          <div class="delivery-step-dot">
+            {% if idx < current_idx %}<i class="bi bi-check2"></i>{% else %}{{ idx + 1 }}{% endif %}
+          </div>
+          <div class="delivery-step-label">{{ stage_labels[key] }}</div>
+        </div>
+        {% if not loop.last %}
+          <div class="delivery-step-connector {{ 'done' if idx < current_idx else '' }}"></div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Delete payment modal -->
+<div class="modal fade" id="deletePaymentModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0">
+        <h5 class="modal-title">Delete payment?</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-muted" id="deletePaymentBody"></div>
+      <div class="modal-footer border-0">
+        <button class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-danger btn-sm" id="deletePaymentConfirm">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card form-card">
+  <div class="card-body">
+    <h5 class="mb-3">Edit event details</h5>
+    <form method="post" action="/events/{{ event.id }}" class="row g-3" id="edit-event-form">
+      <div class="col-md-4">
+        <label class="form-label">Event name</label>
+        <input name="name" class="form-control" value="{{ event.name }}" required>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Client name</label>
+        <input name="client_name" class="form-control" value="{{ event.client_name or '' }}">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Event date</label>
+        <input type="date" name="event_date" class="form-control" value="{{ event.event_date or '' }}">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Status</label>
+        <select name="status" class="form-select">
+          {% for s in statuses %}
+            <option value="{{ s.value }}" {{ 'selected' if event.status == s }}>{{ s.value }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-1">
+        <label class="form-label">Quoted</label>
+        <input type="number" step="1" name="quoted_amount" class="form-control" value="{{ event.quoted_amount|int }}">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Event type</label>
+        <select name="event_type" class="form-select">
+          <option value="">— None —</option>
+          {% for t in event_types %}
+            <option value="{{ t.value }}" {{ 'selected' if event.event_type == t.value }}>{{ t.value }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Location</label>
+        <select name="location" class="form-select">
+          <option value="">— None —</option>
+          {% for city in cities %}
+            <option value="{{ city }}" {{ 'selected' if event.location == city }}>{{ city }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Lead source</label>
+        <select name="referral_source" class="form-select">
+          <option value="">— None —</option>
+          {% for s in lead_sources %}
+            <option value="{{ s.value }}" {{ 'selected' if event.referral_source == s.value }}>{{ s.value }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12">
+        <label class="form-label">Notes</label>
+        <textarea name="notes" class="form-control" rows="2">{{ event.notes or '' }}</textarea>
+      </div>
+      <div class="col-12">
+        <label class="form-label">
+          Payment schedule
+          <span class="text-muted small fw-normal">one installment per line — <code>YYYY-MM-DD : amount : label</code></span>
+        </label>
+        <textarea name="payment_schedule" class="form-control schedule-input" rows="3"
+                  placeholder="2025-12-01 : 50000 : Booking advance&#10;2026-01-15 : 30000 : Pre-shoot&#10;2026-02-01 : 20000 : On delivery">{{ schedule_text }}</textarea>
+      </div>
+    </form>
+      <!-- Delivery status (shown when event is completed) -->
+      <div class="col-md-4" id="deliveryStatusWrap">
+        <label class="form-label">
+          Delivery stage
+          <span class="text-muted small fw-normal">(post-production)</span>
+        </label>
+        <select name="delivery_status" class="form-select">
+          <option value="">— Not started —</option>
+          <option value="shooting_done" {{ 'selected' if event.delivery_status == 'shooting_done' }}>Shooting done</option>
+          <option value="editing"       {{ 'selected' if event.delivery_status == 'editing' }}>Editing</option>
+          <option value="review"        {{ 'selected' if event.delivery_status == 'review' }}>Review</option>
+          <option value="delivered"     {{ 'selected' if event.delivery_status == 'delivered' }}>Delivered</option>
+        </select>
+      </div>
+    </div>
+    <div class="d-flex justify-content-between align-items-center mt-3">
+      <button type="button" class="btn btn-link text-danger p-0 small"
+              data-bs-toggle="modal" data-bs-target="#deleteEventModal">
+        Delete event
+      </button>
+      <button type="submit" form="edit-event-form" class="btn btn-dark icon-btn">
+        <i class="bi bi-check2"></i>Save changes
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete event modal -->
+<div class="modal fade" id="deleteEventModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0">
+        <h5 class="modal-title">Delete event?</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-muted">
+        Permanently delete <strong>{{ event.name }}</strong> and all its payments and expenses.
+        This cannot be undone.
+      </div>
+      <div class="modal-footer border-0">
+        <button class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <form method="post" action="/events/{{ event.id }}/delete">
+          <button class="btn btn-danger btn-sm">Delete event</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Payment delete modal
+(function() {
+  let targetForm = null;
+  document.querySelectorAll('.delete-payment-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      targetForm = this.closest('form');
+      document.getElementById('deletePaymentBody').textContent =
+        `Delete payment of ${this.dataset.amount} on ${this.dataset.date}? This cannot be undone.`;
+      new bootstrap.Modal(document.getElementById('deletePaymentModal')).show();
+    });
+  });
+  document.getElementById('deletePaymentConfirm').addEventListener('click', function() {
+    if (targetForm) targetForm.submit();
+  });
+})();
+
+// Show delivery status field always (no need to hide it)
+{% if cat_chart.data %}
+  const PALETTE = [
+    '#c9a84c','#2f7d4b','#b43d3d','#476f93','#7b5b8e',
+    '#c96f1a','#2f8f83','#9c5d3f','#556b2f','#805c43',
+    '#5b7f95','#8b6f47','#3f7f6b','#a84c5d','#4b4b4b',
+  ];
+  const labels = {{ cat_chart.labels|tojson }};
+  const data = {{ cat_chart.data|tojson }};
+  const colors = labels.map((_, i) => PALETTE[i % PALETTE.length]);
+
+  document.querySelectorAll('.cat-dot').forEach(el => {
+    el.style.background = colors[+el.dataset.idx];
+  });
+
+  new Chart(document.getElementById('catChart'), {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: '#fffdf9' }] },
+    options: {
+      cutout: '68%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+              const pct = total ? ((ctx.parsed / total) * 100).toFixed(1) : '0.0';
+              return ` ${ctx.label}: Rs ${ctx.parsed.toLocaleString('en-IN')} (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+{% endif %}
+</script>
+{% endblock %}

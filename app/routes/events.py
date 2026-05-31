@@ -1,0 +1,329 @@
+import json
+import re
+from datetime import date as date_cls
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi.responses import RedirectResponse
+
+from app.database import get_db, SheetDB
+from app.enums import EventStatus, EventType, LeadSource
+from app.services.reports import event_profit, event_profits
+from app.templating import templates
+
+
+def _parse_schedule(raw: str) -> Optional[str]:
+    """Parse user-entered schedule text into normalized JSON string.
+
+    Accepted line formats:
+      YYYY-MM-DD : 50000 : Booking
+      YYYY-MM-DD : 50000
+      YYYY-MM-DD, 50000, Booking
+    Blank lines and malformed lines are skipped silently.
+    Returns JSON string or None if no valid installments parsed.
+    """
+    raw = (raw or "").strip()
+    if not raw:
+        return None
+    items = []
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        # Allow either : or , as the separator
+        parts = [p.strip() for p in re.split(r"[,:]", line) if p.strip()]
+        if len(parts) < 2:
+            continue
+        try:
+            d = date_cls.fromisoformat(parts[0])
+        except ValueError:
+            continue
+        try:
+            amt = float(parts[1].replace(",", ""))
+        except ValueError:
+            continue
+        label = parts[2] if len(parts) >= 3 else ""
+        items.append({"date": d.isoformat(), "amount": amt, "label": label})
+    if not items:
+        return None
+    items.sort(key=lambda x: x["date"])
+    return json.dumps(items, ensure_ascii=False)
+
+
+def _schedule_to_text(schedule_json: Optional[str]) -> str:
+    """Inverse of _parse_schedule — turn JSON back into the textarea format."""
+    if not schedule_json:
+        return ""
+    try:
+        items = json.loads(schedule_json)
+    except (ValueError, TypeError):
+        return ""
+    lines = []
+    for it in items:
+        amt = it.get("amount", 0)
+        amt_str = f"{int(amt)}" if amt == int(amt) else f"{amt}"
+        label = it.get("label", "")
+        if label:
+            lines.append(f"{it.get('date','')} : {amt_str} : {label}")
+        else:
+            lines.append(f"{it.get('date','')} : {amt_str}")
+    return "\n".join(lines)
+
+
+def _annotate_schedule(schedule_json: Optional[str], payments) -> list[dict]:
+    """Combine schedule with cumulative-paid logic for the detail page.
+
+    For each installment, mark it 'paid' if cumulative received by the
+    installment date >= cumulative scheduled by the same date.
+    """
+    if not schedule_json:
+        return []
+    try:
+        items = json.loads(schedule_json)
+    except (ValueError, TypeError):
+        return []
+    # Sort payments by date so cumulative works
+    sorted_pays = sorted(payments, key=lambda p: p.payment_date)
+    annotated = []
+    cumulative_scheduled = 0.0
+    for it in items:
+        try:
+            installment_date = date_cls.fromisoformat(it["date"])
+        except (KeyError, ValueError):
+            continue
+        amount = float(it.get("amount", 0))
+        label = it.get("label", "")
+        cumulative_scheduled += amount
+        cumulative_received_by_date = sum(
+            p.amount for p in sorted_pays if p.payment_date <= installment_date
+        )
+        # Past due if installment date has passed today and not paid
+        is_paid = cumulative_received_by_date + 0.01 >= cumulative_scheduled
+        is_overdue = (not is_paid) and (installment_date < date_cls.today())
+        annotated.append({
+            "date": installment_date,
+            "amount": amount,
+            "label": label,
+            "is_paid": is_paid,
+            "is_overdue": is_overdue,
+            "cumulative_scheduled": round(cumulative_scheduled, 2),
+            "cumulative_received": round(cumulative_received_by_date, 2),
+        })
+    return annotated
+
+INDIAN_CITIES = [
+    "Ahmedabad", "Bangalore", "Chennai", "Coimbatore", "Delhi",
+    "Goa", "Hyderabad", "Jaipur", "Kochi", "Kolkata", "Lucknow",
+    "Mumbai", "Mysore", "Nagpur", "Pune", "Surat", "Visakhapatnam",
+]
+
+router = APIRouter()
+
+
+@router.get("/events")
+def list_events(
+    request: Request,
+    status: str = "",
+    event_type: str = "",
+    date_from: str = "",
+    date_to: str = "",
+    db: SheetDB = Depends(get_db),
+):
+    rows = event_profits(db)
+    # Apply filters (QW1)
+    if status:
+        rows = [r for r in rows if r.event.status.value == status]
+    if event_type:
+        rows = [r for r in rows if (r.event.event_type or "") == event_type]
+    df = _parse_date(date_from)
+    dt = _parse_date(date_to)
+    if df:
+        rows = [r for r in rows if r.event.event_date and r.event.event_date >= df]
+    if dt:
+        rows = [r for r in rows if r.event.event_date and r.event.event_date <= dt]
+    return templates.TemplateResponse(
+        request, "events/list.html", {
+            "rows": rows,
+            "statuses": list(EventStatus),
+            "event_types": list(EventType),
+            "filters": {
+                "status": status,
+                "event_type": event_type,
+                "date_from": date_from,
+                "date_to": date_to,
+            },
+        }
+    )
+
+
+@router.get("/events/new")
+def new_event_form(request: Request, db: SheetDB = Depends(get_db)):
+    return templates.TemplateResponse(
+        request, "events/form.html", {
+            "event": None,
+            "statuses": list(EventStatus),
+            "event_types": list(EventType),
+            "lead_sources": list(LeadSource),
+            "cities": INDIAN_CITIES,
+            "clients": db.list_clients(),
+        },
+    )
+
+
+@router.post("/events")
+def create_event(
+    request: Request,
+    name: str = Form(...),
+    client_name: str = Form(""),
+    client_id: str = Form(""),
+    event_date: str = Form(""),
+    quoted_amount: float = Form(0.0),
+    status: str = Form("active"),
+    notes: str = Form(""),
+    event_type: str = Form(""),
+    location: str = Form(""),
+    referral_source: str = Form(""),
+    db: SheetDB = Depends(get_db),
+):
+    cid = int(client_id) if client_id.strip() else None
+    ev = db.create_event(
+        name=name.strip(),
+        client_name=client_name.strip() or None,
+        client_id=cid,
+        event_date=_parse_date(event_date),
+        quoted_amount=quoted_amount,
+        status=status,
+        notes=notes.strip() or None,
+        event_type=event_type.strip() or None,
+        location=location.strip() or None,
+        referral_source=referral_source.strip() or None,
+    )
+    return RedirectResponse(url=f"/events/{ev.id}", status_code=303)
+
+
+@router.get("/events/{event_id}")
+def event_detail(event_id: int, request: Request, db: SheetDB = Depends(get_db)):
+    ep = event_profit(db, event_id)
+    if ep is None:
+        raise HTTPException(status_code=404, detail="Event not found")
+    categories = db.list_categories(active_only=True)
+
+    cat_totals: dict[str, float] = {}
+    for exp in ep.event.expenses:
+        raw = exp.category.name if exp.category else "Other"
+        label = re.sub(r'[-\s]+\d+$', '', raw).strip()
+        cat_totals[label] = round(cat_totals.get(label, 0.0) + exp.amount, 2)
+    cat_totals = dict(sorted(cat_totals.items(), key=lambda x: x[1], reverse=True))
+
+    # Phase 1.2: payment schedule rendering
+    schedule_rows = _annotate_schedule(ep.event.payment_due_dates, ep.event.payments)
+    schedule_text = _schedule_to_text(ep.event.payment_due_dates)
+
+    clients = db.list_clients()
+    clients_map = {c.id: c for c in clients}
+    # Resolve linked client for display
+    linked_client = clients_map.get(ep.event.client_id) if ep.event.client_id else None
+
+    return templates.TemplateResponse(
+        request,
+        "events/detail.html",
+        {
+            "ep": ep,
+            "event": ep.event,
+            "categories": categories,
+            "statuses": list(EventStatus),
+            "event_types": list(EventType),
+            "lead_sources": list(LeadSource),
+            "cities": INDIAN_CITIES,
+            "schedule_rows": schedule_rows,
+            "schedule_text": schedule_text,
+            "clients": clients,
+            "linked_client": linked_client,
+            "cat_chart": {
+                "labels": list(cat_totals.keys()),
+                "data": list(cat_totals.values()),
+            },
+        },
+    )
+
+
+@router.post("/events/{event_id}")
+def update_event(
+    event_id: int,
+    name: str = Form(...),
+    client_name: str = Form(""),
+    client_id: str = Form(""),
+    event_date: str = Form(""),
+    quoted_amount: float = Form(0.0),
+    status: str = Form("active"),
+    notes: str = Form(""),
+    event_type: str = Form(""),
+    location: str = Form(""),
+    referral_source: str = Form(""),
+    payment_schedule: str = Form(""),
+    delivery_status: str = Form(""),
+    db: SheetDB = Depends(get_db),
+):
+    schedule_json = _parse_schedule(payment_schedule)
+    cid = int(client_id) if client_id.strip() else None
+    ev = db.update_event(
+        event_id,
+        name=name.strip(),
+        client_name=client_name.strip() or None,
+        client_id=cid,
+        event_date=_parse_date(event_date),
+        quoted_amount=quoted_amount,
+        status=status,
+        notes=notes.strip() or None,
+        event_type=event_type.strip() or None,
+        location=location.strip() or None,
+        referral_source=referral_source.strip() or None,
+        payment_due_dates=schedule_json,
+        delivery_status=delivery_status.strip() or None,
+    )
+    if ev is None:
+        raise HTTPException(status_code=404)
+    return RedirectResponse(url=f"/events/{event_id}", status_code=303)
+
+
+@router.post("/events/{event_id}/delete")
+def delete_event(event_id: int, db: SheetDB = Depends(get_db)):
+    if db.get_event(event_id) is None:
+        raise HTTPException(status_code=404)
+    db.delete_event(event_id)
+    return RedirectResponse(url="/events", status_code=303)
+
+
+@router.post("/events/{event_id}/payments")
+def add_payment(
+    event_id: int,
+    amount: float = Form(...),
+    payment_date: str = Form(...),
+    notes: str = Form(""),
+    db: SheetDB = Depends(get_db),
+):
+    if db.get_event(event_id) is None:
+        raise HTTPException(status_code=404)
+    db.create_payment(
+        event_id=event_id,
+        amount=amount,
+        payment_date=_parse_date(payment_date) or date_cls.today(),
+        notes=notes.strip() or None,
+    )
+    return RedirectResponse(url=f"/events/{event_id}", status_code=303)
+
+
+@router.post("/events/{event_id}/payments/{payment_id}/delete")
+def delete_payment(event_id: int, payment_id: int, db: SheetDB = Depends(get_db)):
+    payments = db.list_payments(event_id=event_id)
+    if not any(p.id == payment_id for p in payments):
+        raise HTTPException(status_code=404)
+    db.delete_payment(payment_id)
+    return RedirectResponse(url=f"/events/{event_id}", status_code=303)
+
+
+def _parse_date(value: str) -> Optional[date_cls]:
+    value = (value or "").strip()
+    if not value:
+        return None
+    return date_cls.fromisoformat(value)

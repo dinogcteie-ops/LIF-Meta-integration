@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Not found{% endblock %}
+{% block content %}
+<div class="empty-state">
+  <div class="page-kicker">Missing frame</div>
+  <h1 class="page-title">404</h1>
+  <p class="page-subtitle mx-auto">No page exists at <code>{{ path }}</code>.</p>
+  <a href="/dashboard" class="btn btn-dark mt-3 icon-btn"><i class="bi bi-arrow-left"></i>Back to dashboard</a>
+</div>
+{% endblock %}

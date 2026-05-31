@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Expenses{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <div class="page-kicker">Costs</div>
+    <h1 class="page-title">Expenses</h1>
+    <p class="page-subtitle">Filter studio spend across events, company operations, and personal categories.</p>
+  </div>
+  <div class="toolbar">
+    <a href="/expenses/new" class="btn btn-dark icon-btn"><i class="bi bi-plus-lg"></i>New expense</a>
+  </div>
+</header>
+
+<form method="get" action="/expenses" class="filter-panel">
+  <div class="row g-2 align-items-center">
+    <div class="col-md-2">
+      <select name="scope" class="form-select form-select-sm" aria-label="Scope">
+        <option value="">All scopes</option>
+        {% for s in scopes %}
+          <option value="{{ s.value }}" {{ 'selected' if filters.scope == s.value else '' }}>{{ s.value }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <select name="event_id" class="form-select form-select-sm" aria-label="Event">
+        <option value="">All events</option>
+        {% for e in all_events %}
+          <option value="{{ e.id }}" {{ 'selected' if filters.event_id == e.id else '' }}>{{ e.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select name="category_id" class="form-select form-select-sm" aria-label="Category">
+        <option value="">All categories</option>
+        {% for c in all_categories %}
+          <option value="{{ c.id }}" {{ 'selected' if filters.category_id == c.id else '' }}>{{ c.name }} ({{ c.scope.value }})</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-1">
+      <select name="status" class="form-select form-select-sm" aria-label="Status">
+        <option value="">Any</option>
+        {% for s in statuses %}
+          <option value="{{ s.value }}" {{ 'selected' if filters.status == s.value else '' }}>{{ s.value }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2"><input type="date" name="date_from" value="{{ filters.date_from }}" class="form-control form-control-sm" aria-label="From"></div>
+    <div class="col-md-2"><input type="date" name="date_to" value="{{ filters.date_to }}" class="form-control form-control-sm" aria-label="To"></div>
+    <div class="col-12 d-flex justify-content-end gap-2">
+      <a href="/expenses" class="btn btn-sm btn-link">Reset</a>
+      <button class="btn btn-sm btn-dark icon-btn"><i class="bi bi-funnel"></i>Filter</button>
+    </div>
+  </div>
+</form>
+
+<div class="card section-card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th class="ps-4">Date</th><th>Scope</th><th>Event</th><th>Category</th>
+          <th>Status</th><th>Paid to</th><th>Via</th>
+          <th class="text-end">Amount</th>
+          <th class="text-end">Paid</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for e in expenses %}
+        <tr>
+          <td class="ps-4">{{ e.date }}</td>
+          <td><span class="badge bg-secondary">{{ e.scope.value }}</span></td>
+          <td>{% if e.event_id and e.event_id in events %}<a href="/events/{{ e.event_id }}" class="event-link">{{ events[e.event_id].name }}</a>{% else %}-{% endif %}</td>
+          <td>{{ categories[e.category_id].name if e.category_id in categories else '-' }}</td>
+          <td>
+            <span class="status-pill {{ 'status-paid' if e.payment_status.value == 'paid' else ('status-partial' if e.payment_status.value == 'partial' else 'status-pending') }}">
+              {{ e.payment_status.value }}
+            </span>
+          </td>
+          <td class="small text-muted">{{ e.paid_to or '-' }}</td>
+          <td class="small text-muted">{% if e.payment_type %}<span class="badge bg-light text-secondary border">{{ e.payment_type }}</span>{% else %}-{% endif %}</td>
+          <td class="text-end money">{{ e.amount|money }}</td>
+          <td class="text-end money">{{ e.paid_amount|money }}</td>
+          <td class="text-end pe-4">
+            <a href="/expenses/{{ e.id }}/edit" class="action-link">Edit</a>
+            <form method="post" action="/expenses/{{ e.id }}/delete" class="d-inline"
+                  onsubmit="return confirm('Delete this expense?');">
+              <button class="btn btn-link p-0 small text-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="10" class="empty-state">No expenses match your filters.</td></tr>
+      {% endfor %}
+      </tbody>
+      {% if expenses %}
+        <tfoot>
+          <tr>
+            <th colspan="7" class="text-end">Totals</th>
+            <th class="text-end money">{{ total|money }}</th>
+            <th class="text-end money">{{ paid_total|money }}</th>
+            <th></th>
+          </tr>
+        </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+{% endblock %}

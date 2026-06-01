@@ -148,12 +148,26 @@ def create_expense(
 
 @router.get("/expenses/analytics")
 def expense_analytics_page(request: Request, db: SheetDB = Depends(get_db)):
+    import json
     analytics = _expense_analytics(db)
     grand = analytics.grand_total or 1  # avoid div/0 in template
+    # Pre-serialise category rows to plain dicts so the template can safely
+    # embed them as JSON for the client-side scope drill-down chart.
+    cat_json = json.dumps([
+        {
+            "name":            row.name,
+            "scope":           row.scope,
+            "total_amount":    row.total_amount,
+            "paid_amount":     row.paid_amount,
+            "pending_amount":  row.pending_amount,
+            "txn_count":       row.txn_count,
+        }
+        for row in analytics.by_category
+    ])
     return templates.TemplateResponse(
         request,
         "expenses/analytics.html",
-        {"analytics": analytics, "grand": grand},
+        {"analytics": analytics, "grand": grand, "cat_json": cat_json},
     )
 
 

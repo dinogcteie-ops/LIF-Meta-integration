@@ -135,7 +135,7 @@
 
 <!-- Embed category data as JSON for the chart -->
 <script>
-window._categoryData = {{ analytics.by_category | tojson(default=list) }};
+window._categoryData = {{ cat_json | safe }};
 </script>
 
 {% block scripts %}

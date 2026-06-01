@@ -17,6 +17,6 @@
 # Proxy everything to the Render backend. Keep this LAST.
 [[redirects]]
   from = "/*"
-  to = "https://<app>.onrender.com/:splat"
+  to = "https://lif-crm.onrender.com/:splat"
   status = 200
   force = true

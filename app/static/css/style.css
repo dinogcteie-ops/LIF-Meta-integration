@@ -2844,3 +2844,14 @@ h1, h2, h3, h4, h5, h6 {
 /* ── KPI / stat card icons re-tint ────────────────────────────────────────── */
 .kpi-card-icon.lif-gold, .kpi-card-icon.lif-blue { background: var(--lif-accent-soft); color: var(--zoho-blue-dark); }
 
+/* ── Scope pills ──────────────────────────────────────────────────────────── */
+.scope-pill {
+  display: inline-flex; align-items: center; gap: .3rem;
+  font-size: .72rem; font-weight: 600; letter-spacing: .01em;
+  padding: .22rem .6rem; border-radius: 20px;
+  white-space: nowrap;
+}
+.scope-event   { background: rgba(29,111,242,.1);  color: #1558c0; border: 1px solid rgba(29,111,242,.25); }
+.scope-company { background: rgba(21,128,61,.1);   color: #14532d; border: 1px solid rgba(21,128,61,.25); }
+.scope-personal{ background: rgba(180,83,9,.1);    color: #92400e; border: 1px solid rgba(180,83,9,.25); }
+

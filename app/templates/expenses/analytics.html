@@ -261,7 +261,15 @@ window._categoryData = {{ cat_json | safe }};
         <tr>
           <td class="ps-4 fw-semibold">{{ row.name }}</td>
           <td>
-            <span class="badge bg-secondary bg-opacity-10 text-secondary border">{{ row.scope }}</span>
+            {% if row.scope == 'event' %}
+              <span class="scope-pill scope-event"><i class="bi bi-camera"></i> Event</span>
+            {% elif row.scope == 'company' %}
+              <span class="scope-pill scope-company"><i class="bi bi-building"></i> Company</span>
+            {% elif row.scope == 'personal' %}
+              <span class="scope-pill scope-personal"><i class="bi bi-person"></i> Personal</span>
+            {% else %}
+              <span class="scope-pill scope-event">{{ row.scope }}</span>
+            {% endif %}
           </td>
           <td class="text-end money">{{ row.total_amount|money }}</td>
           <td class="text-end money text-success">{{ row.paid_amount|money }}</td>

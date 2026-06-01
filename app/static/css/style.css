@@ -2716,7 +2716,21 @@ a:hover {
   --topbar-h: 56px;
 }
 
-body { font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif; }
+body {
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: .9rem;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+  letter-spacing: -.02em;
+}
+.page-title { font-weight: 800; letter-spacing: -.03em; }
+.page-kicker { font-family: "Inter", sans-serif; font-weight: 700; }
+.sidebar-brand-name { font-family: "Inter", sans-serif; font-weight: 800; letter-spacing: -.02em; }
+.sidebar-link { font-size: .84rem; font-weight: 500; }
+.topbar-username { font-family: "Inter", sans-serif; }
 
 /* ── Left module rail (white, Zoho-style) ─────────────────────────────────── */
 .app-sidebar {

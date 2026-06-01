@@ -149,25 +149,65 @@ def create_expense(
 @router.get("/expenses/analytics")
 def expense_analytics_page(request: Request, db: SheetDB = Depends(get_db)):
     import json
+    from collections import defaultdict
+
     analytics = _expense_analytics(db)
-    grand = analytics.grand_total or 1  # avoid div/0 in template
-    # Pre-serialise category rows to plain dicts so the template can safely
-    # embed them as JSON for the client-side scope drill-down chart.
+    grand = analytics.grand_total or 1
+
+    # ── Fix: rebuild chart data grouped by expense.scope (matches by_scope) ──
+    # analytics.by_category groups by category.scope which can differ from
+    # expense.scope — that caused the card vs modal value mismatch.
+    all_expenses = db.list_expenses()
+    cats_map     = {c.id: c for c in db.list_categories()}
+
+    scope_cats: dict[str, dict] = defaultdict(dict)  # scope → cat_name → row
+    for e in all_expenses:
+        s   = e.scope.value                          # use expense's scope
+        cat = cats_map.get(e.category_id)
+        name = cat.name if cat else f"Cat #{e.category_id}"
+        if name not in scope_cats[s]:
+            scope_cats[s][name] = {"name": name, "scope": s,
+                                   "total_amount": 0.0, "paid_amount": 0.0,
+                                   "pending_amount": 0.0, "txn_count": 0}
+        row = scope_cats[s][name]
+        paid = e.paid_amount if e.payment_status.value == "paid" else (
+               e.paid_amount or 0.0 if e.payment_status.value == "partial" else 0.0)
+        pending = max(0.0, e.amount - paid) if e.payment_status.value != "paid" else 0.0
+        row["total_amount"]   += e.amount
+        row["paid_amount"]    += paid
+        row["pending_amount"] += pending
+        row["txn_count"]      += 1
+
     cat_json = json.dumps([
-        {
-            "name":            row.name,
-            "scope":           row.scope,
-            "total_amount":    row.total_amount,
-            "paid_amount":     row.paid_amount,
-            "pending_amount":  row.pending_amount,
-            "txn_count":       row.txn_count,
-        }
-        for row in analytics.by_category
+        {**r, "total_amount": round(r["total_amount"], 2),
+               "paid_amount": round(r["paid_amount"], 2),
+               "pending_amount": round(r["pending_amount"], 2)}
+        for s in scope_cats
+        for r in sorted(scope_cats[s].values(), key=lambda x: -x["total_amount"])
     ])
+
+    # ── Pending split: active vs booked vs other events ───────────────────────
+    events_map = {e.id: e for e in db.list_events()}
+    pending_by_status: dict[str, float] = defaultdict(float)
+    for e in all_expenses:
+        if e.payment_status.value == "pending":
+            ev = events_map.get(e.event_id) if e.event_id else None
+            label = ev.status.value if ev else "overhead"
+            pending_by_status[label] += e.amount
+        elif e.payment_status.value == "partial":
+            remaining = max(0.0, e.amount - (e.paid_amount or 0.0))
+            if remaining > 0:
+                ev = events_map.get(e.event_id) if e.event_id else None
+                label = ev.status.value if ev else "overhead"
+                pending_by_status[label] += remaining
+
+    pending_split = {k: round(v, 2) for k, v in pending_by_status.items()}
+
     return templates.TemplateResponse(
         request,
         "expenses/analytics.html",
-        {"analytics": analytics, "grand": grand, "cat_json": cat_json},
+        {"analytics": analytics, "grand": grand,
+         "cat_json": cat_json, "pending_split": pending_split},
     )
 
 

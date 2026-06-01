@@ -38,7 +38,35 @@
       <div class="card-body">
         <div class="stat-label">Pending</div>
         <div class="stat-value text-danger">{{ analytics.grand_pending|money }}</div>
-        <div class="stat-sub">Not yet paid</div>
+        <div class="stat-sub mb-2">Not yet paid</div>
+        {% if pending_split %}
+          <div style="font-size:.75rem; line-height:1.8">
+            {% if pending_split.get('booked') %}
+            <div class="d-flex justify-content-between">
+              <span class="text-muted"><i class="bi bi-bookmark me-1"></i>Booked projects</span>
+              <span class="fw-semibold text-danger">{{ pending_split.booked|money }}</span>
+            </div>
+            {% endif %}
+            {% if pending_split.get('active') %}
+            <div class="d-flex justify-content-between">
+              <span class="text-muted"><i class="bi bi-camera me-1"></i>Active projects</span>
+              <span class="fw-semibold text-danger">{{ pending_split.active|money }}</span>
+            </div>
+            {% endif %}
+            {% if pending_split.get('completed') %}
+            <div class="d-flex justify-content-between">
+              <span class="text-muted"><i class="bi bi-check2 me-1"></i>Completed</span>
+              <span class="fw-semibold text-danger">{{ pending_split.completed|money }}</span>
+            </div>
+            {% endif %}
+            {% if pending_split.get('overhead') %}
+            <div class="d-flex justify-content-between">
+              <span class="text-muted"><i class="bi bi-building me-1"></i>Overhead</span>
+              <span class="fw-semibold text-danger">{{ pending_split.overhead|money }}</span>
+            </div>
+            {% endif %}
+          </div>
+        {% endif %}
       </div>
     </div>
   </div>

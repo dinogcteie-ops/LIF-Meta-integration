@@ -61,7 +61,11 @@
     {% set paid  = analytics.by_scope_paid.get(scope_val, 0) %}
     {% set pct   = (total / grand * 100)|round(1) if grand > 0 else 0 %}
   <div class="col-md-4">
-    <div class="card section-card h-100">
+    <div class="card section-card h-100 scope-drill-card"
+         role="button" style="cursor:pointer"
+         data-scope="{{ scope_val }}"
+         data-bs-toggle="modal" data-bs-target="#scopeModal"
+         title="Click to see {{ scope_val }} category breakdown">
       <div class="card-body">
         <div class="d-flex align-items-center gap-2 mb-2">
           <div class="kpi-card-icon {{ color }}"><i class="bi {{ icon }}"></i></div>
@@ -71,6 +75,7 @@
           </div>
           <div class="ms-auto text-end">
             <div class="fw-bold fs-5">{{ total|money }}</div>
+            <div class="text-muted" style="font-size:.7rem"><i class="bi bi-bar-chart-horizontal me-1"></i>View breakdown</div>
           </div>
         </div>
         <div class="progress mb-2" style="height:6px">
@@ -85,6 +90,124 @@
   </div>
   {% endfor %}
 </div>
+
+<!-- ═══ Scope drill-down modal ═══ -->
+<div class="modal fade" id="scopeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="border-bottom:1px solid var(--lif-border)">
+        <h5 class="modal-title fw-bold" id="scopeModalTitle">Category Breakdown</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <!-- Chart -->
+        <div class="p-4 pb-2">
+          <canvas id="scopeBarChart" height="220"></canvas>
+        </div>
+        <!-- Table -->
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" id="scopeBreakdownTable">
+            <thead>
+              <tr>
+                <th class="ps-4">Category</th>
+                <th class="text-end">Total</th>
+                <th class="text-end">Paid</th>
+                <th class="text-end">Pending</th>
+                <th class="text-end pe-4">Txns</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot>
+              <tr class="fw-bold" style="border-top:2px solid var(--lif-border)">
+                <td class="ps-4">Total</td>
+                <td class="text-end" id="scopeTotalAmt"></td>
+                <td class="text-end text-success" id="scopeTotalPaid"></td>
+                <td class="text-end text-danger" id="scopeTotalPending"></td>
+                <td class="pe-4"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Embed category data as JSON for the chart -->
+<script>
+window._categoryData = {{ analytics.by_category | tojson(default=list) }};
+</script>
+
+{% block scripts %}
+<script>
+(function () {
+  const fmt = v => '₹' + Number(v).toLocaleString('en-IN');
+  let chartInst = null;
+
+  document.querySelectorAll('.scope-drill-card').forEach(card => {
+    card.addEventListener('click', function () {
+      const scope = this.dataset.scope;
+      const cats  = (window._categoryData || []).filter(c => c.scope === scope);
+
+      // Update modal title
+      document.getElementById('scopeModalTitle').textContent =
+        scope.charAt(0).toUpperCase() + scope.slice(1) + ' — Category Breakdown';
+
+      // Build chart
+      const labels   = cats.map(c => c.name);
+      const paids    = cats.map(c => c.paid_amount);
+      const pendings = cats.map(c => c.pending_amount);
+
+      if (chartInst) { chartInst.destroy(); }
+      const ctx = document.getElementById('scopeBarChart').getContext('2d');
+      chartInst = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Paid',    data: paids,    backgroundColor: 'rgba(21,128,61,.75)',  borderRadius: 4 },
+            { label: 'Pending', data: pendings, backgroundColor: 'rgba(220,38,38,.65)',  borderRadius: 4 },
+          ]
+        },
+        options: {
+          responsive: true,
+          indexAxis: 'y',
+          plugins: {
+            legend: { position: 'top' },
+            tooltip: { callbacks: { label: ctx => ' ' + fmt(ctx.raw) } }
+          },
+          scales: {
+            x: { stacked: true, ticks: { callback: v => '₹' + (v/1000).toFixed(0) + 'k' } },
+            y: { stacked: true }
+          }
+        }
+      });
+
+      // Build table
+      const tbody = document.querySelector('#scopeBreakdownTable tbody');
+      tbody.innerHTML = '';
+      let sumTotal = 0, sumPaid = 0, sumPending = 0;
+      cats.forEach(c => {
+        sumTotal   += c.total_amount;
+        sumPaid    += c.paid_amount;
+        sumPending += c.pending_amount;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="ps-4 fw-semibold">${c.name}</td>
+          <td class="text-end">${fmt(c.total_amount)}</td>
+          <td class="text-end text-success">${fmt(c.paid_amount)}</td>
+          <td class="text-end ${c.pending_amount > 0 ? 'text-danger' : 'text-muted'}">${fmt(c.pending_amount)}</td>
+          <td class="text-end pe-4 text-muted">${c.txn_count}</td>`;
+        tbody.appendChild(tr);
+      });
+      document.getElementById('scopeTotalAmt').textContent     = fmt(sumTotal);
+      document.getElementById('scopeTotalPaid').textContent    = fmt(sumPaid);
+      document.getElementById('scopeTotalPending').textContent = fmt(sumPending);
+    });
+  });
+})();
+</script>
+{% endblock %}
 
 <!-- ═══ Top Categories ═══ -->
 <div class="card section-card mb-4">

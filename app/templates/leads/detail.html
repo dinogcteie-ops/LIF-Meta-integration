@@ -69,6 +69,12 @@
         <div class="stat-label">Follow-up date</div>
         <div class="mt-1 fw-semibold">{{ lead.followup_date or '—' }}</div>
       </div>
+      {% if lead.rejection_reason %}
+      <div class="col-md-6">
+        <div class="stat-label">Lost reason</div>
+        <div class="mt-1"><span class="badge bg-danger-subtle text-danger-emphasis">{{ lead.rejection_reason }}</span></div>
+      </div>
+      {% endif %}
       {% if linked_client %}
       <div class="col-md-6">
         <div class="stat-label">Linked client</div>

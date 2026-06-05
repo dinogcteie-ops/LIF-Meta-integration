@@ -11,7 +11,8 @@ from app.services.analytics import (
 )
 from app.services.reports import (
     bank_summary, cash_flow_alerts, event_profits,
-    lead_funnel, payables_aging, receivables_aging, source_conversion,
+    lead_funnel, lost_reason_breakdown, payables_aging, receivables_aging,
+    source_conversion,
 )
 from app.templating import templates
 
@@ -90,6 +91,7 @@ def dashboard(request: Request,
     all_leads = db.list_leads()
     funnel    = lead_funnel(all_leads)
     sources   = source_conversion(all_leads)
+    lost      = lost_reason_breakdown(all_leads)
 
     # Sidebar overdue counts (QW3 — keep cheap by reusing aging compute)
     _, rec_totals = receivables_aging(db, today)
@@ -188,6 +190,7 @@ def dashboard(request: Request,
             "sidebar_badges": sidebar_badges,
             "funnel":         funnel,
             "sources":        sources,
+            "lost":           lost,
             # Sprint 1 & 5 analytics
             "kpis":           kpis,
             "sparklines":     sparklines,

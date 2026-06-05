@@ -96,10 +96,18 @@
                placeholder="e.g. 25th April, 4th May">
       </div>
       <div class="col-md-6">
-        <label class="form-label">Rejection reason</label>
-        <input name="rejection_reason" class="form-control"
-               value="{{ lead.rejection_reason if lead else '' }}"
-               placeholder="e.g. Budget too low">
+        <label class="form-label">Lost reason</label>
+        {% set current_reason = lead.rejection_reason if lead else '' %}
+        {% set known_reasons = lost_reasons | map(attribute='value') | list %}
+        <select name="rejection_reason" class="form-select">
+          <option value="">— Not lost / None —</option>
+          {% for r in lost_reasons %}
+            <option value="{{ r.value }}" {{ 'selected' if current_reason == r.value else '' }}>{{ r.value }}</option>
+          {% endfor %}
+          {% if current_reason and current_reason not in known_reasons %}
+            <option value="{{ current_reason }}" selected>{{ current_reason }} (legacy)</option>
+          {% endif %}
+        </select>
       </div>
       <div class="col-md-4">
         <label class="form-label">Follow-up status</label>

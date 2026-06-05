@@ -237,6 +237,72 @@
 </div>
 {% endif %}
 
+{% if lost and lost.has_data %}
+<div class="row g-3 mb-4">
+  <div class="col-12">
+    <div class="card lif-card">
+      <div class="section-header">
+        <h5 class="section-title"><i class="bi bi-graph-down-arrow me-2 text-danger"></i>Why we lose leads</h5>
+        <a href="/leads?status=lost" class="btn btn-sm btn-outline-secondary icon-btn">
+          <i class="bi bi-arrow-right"></i>View lost leads
+        </a>
+      </div>
+      <div class="card-body pt-2">
+        <div class="row g-4 align-items-center">
+          <div class="col-md-5">
+            <div class="lost-chart-wrap">
+              <canvas id="lostReasonChart"></canvas>
+              <div class="lost-chart-center">
+                <div class="lost-chart-total">{{ lost.total_lost }}</div>
+                <div class="lost-chart-cap">leads lost</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-7">
+            <div class="table-responsive">
+              <table class="table table-sm lif-table mb-0">
+                <thead>
+                  <tr>
+                    <th>Reason</th>
+                    <th class="text-center">Leads</th>
+                    <th class="text-center">Share</th>
+                    <th class="text-end">Value lost</th>
+                  </tr>
+                </thead>
+                <tbody>
+                {% for r in lost.rows %}
+                  <tr>
+                    <td><span class="cat-dot lost-dot" data-idx="{{ loop.index0 }}"></span>{{ r.reason }}</td>
+                    <td class="text-center fw-semibold">{{ r.count }}</td>
+                    <td class="text-center text-muted">{{ r.pct_of(lost.total_lost) }}%</td>
+                    <td class="text-end">{% if r.value %}{{ r.value | money }}{% else %}—{% endif %}</td>
+                  </tr>
+                {% endfor %}
+                </tbody>
+                <tfoot>
+                  <tr class="fw-semibold">
+                    <td>Total</td>
+                    <td class="text-center">{{ lost.total_lost }}</td>
+                    <td class="text-center">100%</td>
+                    <td class="text-end">{% if lost.total_value %}{{ lost.total_value | money }}{% else %}—{% endif %}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            {% if lost.top_reason %}
+            <div class="text-muted small mt-2">
+              Biggest leak: <strong>{{ lost.top_reason.reason }}</strong>
+              ({{ lost.top_reason.pct_of(lost.total_lost) }}% of losses).
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <div class="card section-card">
   <div class="section-header">
     <div>
@@ -784,5 +850,45 @@ document.addEventListener('DOMContentLoaded', () => {
     new bootstrap.Tooltip(el, { boundary: document.body });
   });
 });
+
+{% if lost and lost.has_data %}
+// Lost-lead reason breakdown — doughnut
+(function () {
+  const LOST_PALETTE = [
+    '#b43d3d','#c96f1a','#c5a23c','#7b5b8e','#476f93',
+    '#2f8f83','#9c5d3f','#805c43','#a84c5d','#5b7f95','#4b4b4b',
+  ];
+  const labels = {{ lost.labels|tojson }};
+  const data = {{ lost.data|tojson }};
+  const colors = labels.map((_, i) => LOST_PALETTE[i % LOST_PALETTE.length]);
+
+  document.querySelectorAll('.lost-dot').forEach(el => {
+    el.style.background = colors[+el.dataset.idx];
+  });
+
+  const canvas = document.getElementById('lostReasonChart');
+  if (canvas) {
+    new Chart(canvas, {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: '#fffdf9' }] },
+      options: {
+        cutout: '66%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => {
+                const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                const pct = total ? ((ctx.parsed / total) * 100).toFixed(1) : '0.0';
+                return ` ${ctx.label}: ${ctx.parsed} lead${ctx.parsed === 1 ? '' : 's'} (${pct}%)`;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+})();
+{% endif %}
 </script>
 {% endblock %}

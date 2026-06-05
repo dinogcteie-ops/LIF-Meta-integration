@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 from app.database import get_db, SheetDB
-from app.enums import EventType, FollowupStatus, LeadSource, LeadStatus
+from app.enums import EventType, FollowupStatus, LeadSource, LeadStatus, LostReason
 from app.templating import templates
 
 router = APIRouter()
@@ -44,6 +44,7 @@ def new_lead_form(request: Request, db: SheetDB = Depends(get_db)):
             "event_types":     list(EventType),
             "sources":         list(LeadSource),
             "followup_statuses": list(FollowupStatus),
+            "lost_reasons":    list(LostReason),
         }
     )
 
@@ -121,6 +122,7 @@ def edit_lead_form(lead_id: int, request: Request, db: SheetDB = Depends(get_db)
             "event_types":       list(EventType),
             "sources":           list(LeadSource),
             "followup_statuses": list(FollowupStatus),
+            "lost_reasons":      list(LostReason),
         }
     )
 

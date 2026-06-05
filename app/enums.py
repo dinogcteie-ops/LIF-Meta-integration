@@ -47,6 +47,21 @@ class LeadStatus(str, Enum):
     cold   = "cold"
 
 
+class LostReason(str, Enum):
+    """Standardized reasons a lead failed to convert — for win/loss analysis."""
+    spam            = "Invalid / Spam Inquiry"
+    unreachable     = "Unreachable - No Response"
+    budget          = "Budget / Price Mismatch"
+    date_conflict   = "Date Unavailable - Calendar Conflict"
+    slow_followup   = "Delayed Follow-up - Lost Momentum"
+    competitor      = "Chose Competitor"
+    out_of_area     = "Outside Service Area"
+    event_cancelled = "Event Postponed / Cancelled"
+    style_mismatch  = "Style / Portfolio Mismatch"
+    not_serious     = "Just Browsing - Not Serious"
+    other           = "Other Reason"
+
+
 class DeliveryStatus(str, Enum):
     shooting_done = "shooting_done"
     editing       = "editing"

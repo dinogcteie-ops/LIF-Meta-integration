@@ -721,6 +721,43 @@ a:hover {
   width: 10px;
 }
 
+/* Lost-lead reason breakdown (dashboard) */
+.lost-dot {
+  display: inline-block;
+  margin-right: 7px;
+  vertical-align: middle;
+}
+
+.lost-chart-wrap {
+  position: relative;
+  margin: 0 auto;
+  max-width: 240px;
+}
+
+.lost-chart-center {
+  inset: 0;
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  pointer-events: none;
+  position: absolute;
+}
+
+.lost-chart-total {
+  color: var(--lif-red, #b43d3d);
+  font-size: 1.9rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.lost-chart-cap {
+  color: var(--lif-muted, #8a8278);
+  font-size: .72rem;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+
 .cat-legend-info {
   flex: 1;
   min-width: 0;

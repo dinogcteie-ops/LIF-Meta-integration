@@ -663,6 +663,66 @@ class LeadFunnel:
         return round(self.won_count / denom * 100, 1)
 
 
+@dataclass
+class LostReasonStat:
+    """One row in the lost-lead reason breakdown."""
+    reason: str
+    count:  int
+    value:  float   # total quoted value that walked away under this reason
+
+    def pct_of(self, total: int) -> float:
+        return round(self.count / total * 100, 1) if total else 0.0
+
+
+@dataclass
+class LostReasonBreakdown:
+    """Why we lose leads — aggregated for the dashboard summary widget."""
+    rows:        list[LostReasonStat] = field(default_factory=list)
+    total_lost:  int   = 0
+    total_value: float = 0.0
+
+    @property
+    def has_data(self) -> bool:
+        return self.total_lost > 0
+
+    @property
+    def labels(self) -> list[str]:
+        return [r.reason for r in self.rows]
+
+    @property
+    def data(self) -> list[int]:
+        return [r.count for r in self.rows]
+
+    @property
+    def top_reason(self) -> "LostReasonStat | None":
+        return self.rows[0] if self.rows else None
+
+
+def lost_reason_breakdown(leads: list[Lead]) -> LostReasonBreakdown:
+    """Group lost leads by their standardized rejection reason.
+
+    Counts and total quoted value are bucketed per reason; leads marked lost
+    with no reason recorded fall into 'Unspecified'. Rows are sorted by count
+    descending so the biggest leak surfaces first.
+    """
+    buckets: dict[str, dict] = defaultdict(lambda: {"count": 0, "value": 0.0})
+    for lead in leads:
+        if lead.status != "lost":
+            continue
+        reason = (lead.rejection_reason or "").strip() or "Unspecified"
+        buckets[reason]["count"] += 1
+        buckets[reason]["value"] += lead.quoted_amount or 0.0
+    rows = [
+        LostReasonStat(reason=r, count=d["count"], value=round(d["value"], 2))
+        for r, d in sorted(buckets.items(), key=lambda x: (-x[1]["count"], x[0]))
+    ]
+    return LostReasonBreakdown(
+        rows=rows,
+        total_lost=sum(r.count for r in rows),
+        total_value=round(sum(r.value for r in rows), 2),
+    )
+
+
 def lead_funnel(leads: list[Lead]) -> LeadFunnel:
     """Compute funnel counts from a pre-loaded list of leads."""
     funnel = LeadFunnel()

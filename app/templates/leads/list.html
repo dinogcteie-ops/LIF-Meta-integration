@@ -73,6 +73,7 @@
           <th>Tentative date</th>
           <th>Source</th>
           <th>Status</th>
+          <th>Lost reason</th>
           <th>Follow-up</th>
           <th class="text-end">Value</th>
           <th></th>
@@ -90,6 +91,13 @@
           <td class="text-muted small">{{ lead.source or '—' }}</td>
           <td>
             <span class="lead-status-badge lead-status-{{ lead.status }}">{{ lead.status }}</span>
+          </td>
+          <td class="small">
+            {% if lead.rejection_reason %}
+              <span class="badge bg-danger-subtle text-danger-emphasis">{{ lead.rejection_reason }}</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
           </td>
           <td class="small">
             {% if lead.followup_date %}

@@ -14,6 +14,14 @@
 [functions."refresh-meta"]
   schedule = "0 6 * * *"
 
+# Daily follow-up reminder digest — 09:00 IST (03:30 UTC; Netlify cron is UTC).
+[functions."followup-reminders"]
+  schedule = "30 3 * * *"
+
+# Daily inbound-lead capture from the Google Sheet — 09:30 IST (04:00 UTC).
+[functions."import-leads"]
+  schedule = "0 4 * * *"
+
 # Proxy everything to the Render backend. Keep this LAST.
 [[redirects]]
   from = "/*"

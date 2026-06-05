@@ -607,6 +607,11 @@ class Database:
         "currency_symbol":       "₹",
         "ar_grace_days":         "0",
         "reminder_cadence_days": "7",
+        # Follow-up reminder emails (lead follow-ups feature)
+        "followup_recipients":   "",     # comma-separated emails
+        "followup_enabled":      "on",   # "on"/"off"
+        # Google Sheet lead intake high-water mark (newest imported Timestamp)
+        "leads_intake_cursor":   "",
     }
 
     def get_settings_dict(self) -> dict[str, str]:

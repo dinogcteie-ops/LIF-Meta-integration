@@ -55,6 +55,23 @@ def save_settings(
     return RedirectResponse(url="/settings", status_code=303)
 
 
+# ── Notification / follow-up reminder settings ────────────────────────────────
+
+@router.post("/settings/notifications")
+def save_notifications(
+    request: Request,
+    followup_recipients: str = Form(""),
+    followup_enabled:    str = Form(""),   # checkbox: present only when checked
+    db: SheetDB = Depends(get_db),
+):
+    db.set_settings({
+        "followup_recipients": followup_recipients.strip(),
+        "followup_enabled":    "on" if followup_enabled else "off",
+    })
+    request.session["flash"] = "Follow-up reminder settings saved."
+    return RedirectResponse(url="/settings", status_code=303)
+
+
 # ── Recurring expense generation ──────────────────────────────────────────────
 
 @router.post("/settings/generate_recurring")

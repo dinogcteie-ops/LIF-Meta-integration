@@ -7,7 +7,9 @@ from app.config import get_settings
 
 settings = get_settings()
 _PUBLIC_PATHS = {"/login", "/logout", "/healthz", "/inquiry", "/meta/refresh"}
-_PUBLIC_PREFIXES = ("/static/", "/portal/", "/webhooks/")
+# Token-gated cron endpoints reach their own auth check (token or logged-in user),
+# so they must bypass the login redirect — same treatment as /meta/refresh.
+_PUBLIC_PREFIXES = ("/static/", "/portal/", "/webhooks/", "/jobs/")
 
 def verify_password(plain: str) -> bool:
     try:

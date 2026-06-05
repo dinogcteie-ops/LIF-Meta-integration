@@ -77,6 +77,73 @@
 
 </div>
 
+<!-- ── Follow-up reminder emails ──────────────────────────────── -->
+<section class="settings-section mt-4">
+  <div class="settings-section-header">
+    <h5><i class="bi bi-envelope-paper me-2"></i>Follow-up reminders</h5>
+    <p class="text-muted small mb-0">
+      Daily email — on the follow-up due date — for New/Quoted leads whose
+      follow-up date is today. Sent via Gmail (SMTP must be configured on the server).
+    </p>
+  </div>
+  <form method="post" action="/settings/notifications">
+    <div class="settings-body">
+      <div class="settings-row">
+        <label class="settings-label">
+          Recipient emails
+          <span class="settings-hint">Comma-separated. These addresses receive the daily digest.</span>
+        </label>
+        <input type="text" name="followup_recipients" class="form-control settings-input"
+               value="{{ studio.followup_recipients }}"
+               placeholder="owner@example.com, manager@example.com">
+      </div>
+      <div class="settings-row">
+        <label class="settings-label">Enabled</label>
+        <div class="form-check form-switch mt-1">
+          <input class="form-check-input" type="checkbox" name="followup_enabled"
+                 id="followupEnabled" {{ 'checked' if studio.followup_enabled != 'off' else '' }}>
+          <label class="form-check-label" for="followupEnabled">Send the daily reminder</label>
+        </div>
+      </div>
+    </div>
+    <div class="settings-footer">
+      <button class="btn btn-dark icon-btn"><i class="bi bi-check2"></i>Save reminder settings</button>
+    </div>
+  </form>
+  <div class="settings-footer border-top mt-0 pt-3">
+    <form method="post" action="/jobs/followup-reminders" class="d-flex align-items-center gap-2 flex-wrap">
+      <button class="btn btn-outline-dark btn-sm icon-btn"><i class="bi bi-send"></i>Send reminders now</button>
+      <span class="text-muted small">Sends today's digest immediately — useful for testing.</span>
+    </form>
+  </div>
+</section>
+
+<!-- ── Inbound lead capture (Google Sheet) ────────────────────── -->
+<section class="settings-section mt-4">
+  <div class="settings-section-header">
+    <h5><i class="bi bi-cloud-download me-2"></i>Inbound lead capture</h5>
+    <p class="text-muted small mb-0">
+      Pulls new enquiries from the configured Google Sheet into the pipeline.
+      Runs automatically once a day; trigger or preview it manually below.
+    </p>
+  </div>
+  <div class="settings-body">
+    <div class="settings-row">
+      <label class="settings-label">Rows imported so far</label>
+      <div class="pt-1"><span class="badge bg-secondary">{{ studio.leads_intake_cursor or 0 }}</span></div>
+    </div>
+  </div>
+  <div class="settings-footer border-top mt-0 pt-3 d-flex align-items-center gap-2 flex-wrap">
+    <form method="post" action="/jobs/import-leads?dry_run=1">
+      <button class="btn btn-outline-secondary btn-sm icon-btn"><i class="bi bi-search"></i>Dry run (preview)</button>
+    </form>
+    <form method="post" action="/jobs/import-leads">
+      <button class="btn btn-outline-dark btn-sm icon-btn"><i class="bi bi-cloud-download"></i>Import now</button>
+    </form>
+    <span class="text-muted small">Dry run reports headers &amp; counts without creating leads.</span>
+  </div>
+</section>
+
 <!-- ── Recurring expense manager ──────────────────────────────── -->
 <section class="settings-section mt-4">
   <div class="settings-section-header">

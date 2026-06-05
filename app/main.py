@@ -10,7 +10,8 @@ from app.auth import LoginRequiredMiddleware
 from app.config import BASE_DIR, get_settings
 from app.routes import (
     auth, calendar, categories, clients, dashboard, events, expenses, export,
-    leads, meta, payables, payees, portal, quick, receivables, reports, settings, workshop,
+    jobs, leads, meta, payables, payees, portal, quick, receivables, reports,
+    settings, workshop,
 )
 from app.templating import templates
 
@@ -62,6 +63,7 @@ app.include_router(settings.router)
 app.include_router(quick.router)
 app.include_router(portal.router)
 app.include_router(meta.router)
+app.include_router(jobs.router)
 
 
 @app.get("/healthz")

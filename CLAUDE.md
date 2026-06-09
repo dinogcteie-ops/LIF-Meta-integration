@@ -79,6 +79,11 @@ cadence**, not per-change. So:
 
 ## Conventions
 
+- **Estimated expenses are planning-only.** `PaymentStatus.estimated` marks a cost
+  as an estimate. `db.list_expenses()` **excludes estimated rows by default** — so
+  every actual-money calc (payables, profit, KPIs, bank) auto-ignores them. Opt in
+  with `include_estimates=True` or `status="estimated"`. They surface only on the
+  event detail's "Estimated costs / Projected profit" card.
 - **Money is in lakhs (₹L).** Lead/event amounts store lakh values; the `| money`
   Jinja filter renders them with the ₹ symbol and Indian digit grouping. Form labels
   say "(₹ L)". `| pct` formats percentages.

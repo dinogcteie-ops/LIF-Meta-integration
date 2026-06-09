@@ -38,6 +38,7 @@ _Last updated: 2026-06-09 (batch on `feat/lead-workflow-and-loss-analytics`, pen
 | Clients directory + per-client revenue stats | ✅ | |
 | Payees/vendors + spend stats | ✅ | |
 | Expenses with scopes (event/company/personal) + monthly budgets | ✅ | `budget_vs_actual` |
+| **Estimate** expense status — plan event costs separately from actuals; projected profit per event | 🔄 | `PaymentStatus.estimated`; `list_expenses` excludes by default |
 | Receivables & Payables aging (buckets, reminders) | ✅ | `receivables_aging`, `payables_aging` |
 
 ## Leads pipeline

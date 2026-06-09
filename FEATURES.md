@@ -9,7 +9,7 @@ when you add or ship a feature (see the **Release workflow** in [CLAUDE.md](CLAU
 - 🔄 **On branch** — built & verified, pending the end-of-month batch deploy
 - 📝 **Planned** — agreed/backlog, not started
 
-_Last updated: 2026-06-09._
+_Last updated: 2026-06-09 (batch on `feat/lead-workflow-and-loss-analytics`, pending end-of-month deploy)._
 
 ---
 
@@ -52,13 +52,15 @@ _Last updated: 2026-06-09._
 | Lost → follow-up status auto **done** | 🔄 | branch `feat/lead-workflow-and-loss-analytics` |
 | **Force a lost reason** before marking Lost | 🔄 | same branch |
 | Quoted/Cold → soft prompt for follow-up date | 🔄 | same branch |
-| "Why we lose leads" **filters**: source + month/quarter/year/custom range | 🔄 | same branch; counts by enquiry date |
+| "Why we lose leads" **filters**: source + explicit months (rolling 12) / quarter / year / custom range | 🔄 | same branch; counts by enquiry date |
+| **Lead pipeline** widget shows **Lost** + **Won % / Lost %** + the same source/date filters | 🔄 | same branch; `LeadFunnel.won_rate`/`lost_rate`, independent `pipe_*` filter |
 
 ## Dashboards — sharing
 
 | Feature | Status | Notes |
 |---|---|---|
 | **Share as image** (lost-leads widget, lead-pipeline widget, whole dashboard) | 🔄 | `app/static/js/share.js` + html2canvas; Web Share API → WhatsApp, download fallback |
+| **Download as image** button beside each Share button (direct PNG) | 🔄 | `downloadAsImage()` in `share.js` |
 
 ## Lead intake & notifications
 

@@ -137,3 +137,35 @@
   </div>
 </form>
 {% endblock %}
+
+{% block scripts %}
+<script>
+// Lead form: enforce a lost reason (#2) and softly prompt for a follow-up date
+// when moving to Quoted/Cold (#3, skippable).
+(function () {
+  const status = document.querySelector('select[name="status"]');
+  if (!status) return;
+  const form = status.closest('form');
+  const reason = form.querySelector('select[name="rejection_reason"]');
+  const fudate = form.querySelector('input[name="followup_date"]');
+
+  function sync() {
+    const v = status.value;
+    const isLost = v === 'lost';
+    const isQC = (v === 'quoted' || v === 'cold');
+    if (reason) {
+      reason.required = isLost;                                  // browser blocks empty submit
+      reason.classList.toggle('border-danger', isLost && !reason.value);
+    }
+    if (fudate) {
+      fudate.classList.toggle('border-warning', isQC && !fudate.value);
+    }
+  }
+
+  status.addEventListener('change', sync);
+  if (reason) reason.addEventListener('change', sync);
+  if (fudate) fudate.addEventListener('change', sync);
+  sync();
+})();
+</script>
+{% endblock %}

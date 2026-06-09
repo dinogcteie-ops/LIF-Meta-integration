@@ -531,6 +531,9 @@ class Database:
                 meta_lead_id=meta_lead_id, meta_campaign_name=meta_campaign_name,
                 meta_form_id=meta_form_id,
             )
+            # A lost lead has no pending follow-up.
+            if status == "lost":
+                r.followup_status = "done"
             s.add(r); s.flush()
             self._audit(s, "lead", r.id, "create", f"Created lead for '{client_name}'")
             return _lead(r)
@@ -556,7 +559,9 @@ class Database:
             r.num_events = num_events; r.revised_quote = revised_quote
             r.follow_ups = follow_ups; r.rejection_reason = rejection_reason
             r.meta_campaign = meta_campaign; r.referral_name = referral_name
-            r.followup_status = followup_status; r.followup_date = followup_date
+            # A lost lead has no pending follow-up — force it done (#1).
+            r.followup_status = "done" if status == "lost" else followup_status
+            r.followup_date = followup_date
             s.flush()
             return _lead(r)
 

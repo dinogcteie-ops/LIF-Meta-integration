@@ -698,6 +698,41 @@ class LostReasonBreakdown:
         return self.rows[0] if self.rows else None
 
 
+def _lead_created_date(lead: Lead) -> "date | None":
+    """Parse the enquiry date from a lead's created_at ISO string."""
+    raw = (lead.created_at or "")[:10]
+    try:
+        return date.fromisoformat(raw)
+    except ValueError:
+        return None
+
+
+def filter_lost_leads(leads: list[Lead], source: str | None = None,
+                      start: "date | None" = None,
+                      end: "date | None" = None) -> list[Lead]:
+    """Lost leads, optionally filtered by source and by enquiry date (created_at).
+
+    When a date range is set, leads with no parseable created_at are excluded.
+    A ``source`` of None / "" / "all" means every source.
+    """
+    out: list[Lead] = []
+    for lead in leads:
+        if lead.status != "lost":
+            continue
+        if source and source != "all" and (lead.source or "") != source:
+            continue
+        if start or end:
+            d = _lead_created_date(lead)
+            if d is None:
+                continue
+            if start and d < start:
+                continue
+            if end and d > end:
+                continue
+        out.append(lead)
+    return out
+
+
 def lost_reason_breakdown(leads: list[Lead]) -> LostReasonBreakdown:
     """Group lost leads by their standardized rejection reason.
 

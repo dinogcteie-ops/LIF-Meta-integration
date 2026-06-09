@@ -70,6 +70,10 @@ def create_lead(
     followup_date:    str   = Form(""),
     db: SheetDB = Depends(get_db),
 ):
+    # (#2) A lost lead must have a reason recorded.
+    if status == "lost" and not rejection_reason.strip():
+        request.session["flash"] = "Please choose a lost reason before marking a lead as Lost."
+        return RedirectResponse(url="/leads/new", status_code=303)
     lead = db.create_lead(
         client_name=client_name.strip(),
         contact=contact.strip(),
@@ -106,6 +110,7 @@ def lead_detail(lead_id: int, request: Request, db: SheetDB = Depends(get_db)):
             "sources":           list(LeadSource),
             "linked_client":     linked_client,
             "followup_statuses": list(FollowupStatus),
+            "lost_reasons":      list(LostReason),
         }
     )
 
@@ -130,6 +135,7 @@ def edit_lead_form(lead_id: int, request: Request, db: SheetDB = Depends(get_db)
 @router.post("/leads/{lead_id}")
 def update_lead(
     lead_id:          int,
+    request:          Request,
     client_name:      str   = Form(...),
     contact:          str   = Form(""),
     event_type:       str   = Form(""),
@@ -148,6 +154,10 @@ def update_lead(
     followup_date:    str   = Form(""),
     db: SheetDB = Depends(get_db),
 ):
+    # (#2) A lost lead must have a reason recorded.
+    if status == "lost" and not rejection_reason.strip():
+        request.session["flash"] = "Please choose a lost reason before marking a lead as Lost."
+        return RedirectResponse(url=f"/leads/{lead_id}/edit", status_code=303)
     lead = db.update_lead(
         lead_id,
         client_name=client_name.strip(),

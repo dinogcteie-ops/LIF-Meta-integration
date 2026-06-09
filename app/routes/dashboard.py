@@ -4,15 +4,15 @@ from datetime import date
 from fastapi import APIRouter, Depends, Request
 
 from app.database import get_db, SheetDB
-from app.enums import EventStatus, PaymentStatus
+from app.enums import EventStatus, LeadSource, PaymentStatus
 from app.services.analytics import (
     compute_kpis, dashboard_sparklines, event_type_profitability,
     seasonal_analysis, yoy_comparison,
 )
 from app.services.reports import (
     bank_summary, cash_flow_alerts, event_profits,
-    lead_funnel, lost_reason_breakdown, payables_aging, receivables_aging,
-    source_conversion,
+    filter_lost_leads, lead_funnel, lost_reason_breakdown, payables_aging,
+    receivables_aging, source_conversion,
 )
 from app.templating import templates
 
@@ -35,9 +35,37 @@ def _range_filter(events, period: str, today: date):
     return list(events)  # 'all'
 
 
+def _parse_iso(s: str):
+    s = (s or "").strip()
+    if not s:
+        return None
+    try:
+        return date.fromisoformat(s)
+    except ValueError:
+        return None
+
+
+def _lost_date_window(lost_range: str, lost_from: str, lost_to: str,
+                      today: date, qtr_start: date):
+    """(start, end) enquiry-date window for the lost-leads filter; (None, None) = all time."""
+    if lost_range == "month":
+        return date(today.year, today.month, 1), today
+    if lost_range == "quarter":
+        return qtr_start, today
+    if lost_range == "year":
+        return date(today.year, 1, 1), today
+    if lost_range == "custom":
+        return _parse_iso(lost_from), _parse_iso(lost_to)
+    return None, None
+
+
 @router.get("/dashboard")
 def dashboard(request: Request,
               period: str = "quarter",
+              lost_source: str = "all",
+              lost_range: str = "all",
+              lost_from: str = "",
+              lost_to: str = "",
               db: SheetDB = Depends(get_db)):
     bank   = bank_summary(db)
     all_ep = event_profits(db)
@@ -91,7 +119,23 @@ def dashboard(request: Request,
     all_leads = db.list_leads()
     funnel    = lead_funnel(all_leads)
     sources   = source_conversion(all_leads)
-    lost      = lost_reason_breakdown(all_leads)
+
+    # "Why we lose leads" widget — filter by source + enquiry-date range (#4)
+    if lost_range not in ("all", "month", "quarter", "year", "custom"):
+        lost_range = "all"
+    lost_start, lost_end = _lost_date_window(lost_range, lost_from, lost_to, today, qtr_start)
+    lost_leads = filter_lost_leads(all_leads, lost_source, lost_start, lost_end)
+    lost = lost_reason_breakdown(lost_leads)
+    # Source options: every source seen on lost leads, unioned with the standard set.
+    lost_sources = sorted(
+        {l.source for l in all_leads if l.status == "lost" and l.source}
+        | {s.value for s in LeadSource}
+    )
+    lost_filters = {
+        "source": lost_source, "range": lost_range,
+        "from": lost_from, "to": lost_to,
+    }
+    lost_any = any(l.status == "lost" for l in all_leads)
 
     # Sidebar overdue counts (QW3 — keep cheap by reusing aging compute)
     _, rec_totals = receivables_aging(db, today)
@@ -191,6 +235,9 @@ def dashboard(request: Request,
             "funnel":         funnel,
             "sources":        sources,
             "lost":           lost,
+            "lost_filters":   lost_filters,
+            "lost_sources":   lost_sources,
+            "lost_any":       lost_any,
             # Sprint 1 & 5 analytics
             "kpis":           kpis,
             "sparklines":     sparklines,

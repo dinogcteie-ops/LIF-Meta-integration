@@ -110,18 +110,32 @@
       <input type="hidden" name="num_events" value="{{ lead.num_events }}">
       <input type="hidden" name="revised_quote" value="{{ lead.revised_quote }}">
       <input type="hidden" name="follow_ups" value="{{ lead.follow_ups }}">
-      <input type="hidden" name="rejection_reason" value="{{ lead.rejection_reason }}">
+      <input type="hidden" name="rejection_reason" id="qsRejectionHidden" value="{{ lead.rejection_reason }}">
       <input type="hidden" name="meta_campaign" value="{{ 'on' if lead.meta_campaign else '' }}">
       <input type="hidden" name="referral_name" value="{{ lead.referral_name }}">
       <input type="hidden" name="followup_status" value="{{ lead.followup_status }}">
-      <input type="hidden" name="followup_date" value="{{ lead.followup_date or '' }}">
+      <input type="hidden" name="followup_date" id="qsFollowupHidden" value="{{ lead.followup_date or '' }}">
       <div>
         <label class="form-label small mb-1">New status</label>
-        <select name="status" class="form-select form-select-sm" style="width:140px">
+        <select name="status" id="qsStatus" class="form-select form-select-sm" style="width:140px">
           {% for s in statuses %}
             <option value="{{ s.value }}" {{ 'selected' if lead.status == s.value }}>{{ s.value | capitalize }}</option>
           {% endfor %}
         </select>
+      </div>
+      <div id="qsLostReasonWrap" style="display:none;">
+        <label class="form-label small mb-1">Lost reason <span class="text-danger">*</span></label>
+        <select name="rejection_reason" id="qsRejectionSelect" class="form-select form-select-sm" style="width:230px" disabled>
+          <option value="">— Select a reason —</option>
+          {% for r in lost_reasons %}
+            <option value="{{ r.value }}" {{ 'selected' if lead.rejection_reason == r.value else '' }}>{{ r.value }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div id="qsFollowupWrap" style="display:none;">
+        <label class="form-label small mb-1">Follow-up date</label>
+        <input type="date" name="followup_date" id="qsFollowupInput" class="form-control form-control-sm"
+               style="width:160px" value="{{ lead.followup_date or '' }}" disabled>
       </div>
       <button class="btn btn-sm btn-dark icon-btn"><i class="bi bi-check2"></i>Update</button>
       <a href="/leads/{{ lead.id }}/edit" class="btn btn-sm btn-outline-dark">Full edit</a>
@@ -163,4 +177,47 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Quick "Update status" form: reveal the right inline field for the chosen status,
+// and ensure only one input per name submits (toggle `disabled` on the hidden carrier).
+(function () {
+  const status = document.getElementById('qsStatus');
+  if (!status) return;
+  const lostWrap   = document.getElementById('qsLostReasonWrap');
+  const lostSelect = document.getElementById('qsRejectionSelect');
+  const lostHidden = document.getElementById('qsRejectionHidden');
+  const fuWrap   = document.getElementById('qsFollowupWrap');
+  const fuInput  = document.getElementById('qsFollowupInput');
+  const fuHidden = document.getElementById('qsFollowupHidden');
+
+  function sync() {
+    const v = status.value;
+    const isLost = v === 'lost';
+    const isQC = (v === 'quoted' || v === 'cold');
+
+    // (#2) Lost reason — required when marking lost.
+    lostWrap.style.display = isLost ? '' : 'none';
+    lostSelect.disabled = !isLost;
+    lostSelect.required = isLost;
+    lostHidden.disabled = isLost;   // avoid duplicate rejection_reason on submit
+
+    // (#3) Follow-up date — soft prompt when moving to quoted/cold (skippable).
+    fuWrap.style.display = isQC ? '' : 'none';
+    fuInput.disabled = !isQC;
+    fuHidden.disabled = isQC;
+    if (isQC && !fuInput.value) {
+      fuInput.classList.add('border-warning');
+      fuInput.setAttribute('placeholder', 'Set a follow-up date');
+    } else {
+      fuInput.classList.remove('border-warning');
+    }
+  }
+
+  status.addEventListener('change', sync);
+  sync();
+})();
+</script>
 {% endblock %}

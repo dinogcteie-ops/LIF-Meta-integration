@@ -265,12 +265,14 @@
             <div class="funnel-card-label">Lost</div>
             <div class="funnel-card-value">{{ funnel.lost_count }}</div>
           </a>
-          <div class="funnel-stat ms-auto">
-            <div class="funnel-stat-label">Won</div>
+        </div>
+        <div class="d-flex justify-content-end mt-3">
+          <div class="funnel-stat">
+            <div class="funnel-stat-label">Won rate</div>
             <div class="funnel-stat-value text-success">{{ funnel.won_rate }}%</div>
           </div>
           <div class="funnel-stat">
-            <div class="funnel-stat-label">Lost</div>
+            <div class="funnel-stat-label">Lost rate</div>
             <div class="funnel-stat-value text-danger">{{ funnel.lost_rate }}%</div>
           </div>
         </div>

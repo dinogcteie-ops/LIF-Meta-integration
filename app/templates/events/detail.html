@@ -84,6 +84,55 @@
   </div>
 </div>
 
+{% if estimates %}
+<!-- Estimated costs (planning only — excluded from actuals, payables, profit) -->
+<div class="card lif-card mb-4" style="border-left: 3px solid var(--lif-gold);">
+  <div class="section-header">
+    <h5 class="section-title"><i class="bi bi-clipboard-data me-2"></i>Estimated costs <span class="text-muted fw-normal">(planning)</span></h5>
+    <span class="text-muted small">Not counted in actuals, payables, or alerts</span>
+  </div>
+  <div class="card-body">
+    <div class="row g-3 mb-3">
+      <div class="col-sm-4">
+        <div class="stat-label">Estimated cost</div>
+        <div class="stat-value" style="color: var(--lif-gold-dark);">{{ estimated_total|money }}</div>
+      </div>
+      <div class="col-sm-4">
+        <div class="stat-label">Actual cost so far</div>
+        <div class="stat-value text-danger">{{ ep.expense|money }}</div>
+      </div>
+      <div class="col-sm-4">
+        <div class="stat-label">Projected profit</div>
+        <div class="stat-value {{ 'text-success' if projected_profit >= 0 else 'text-danger' }}">{{ projected_profit|money }}</div>
+        <div class="stat-sub">Quote − (actual + estimated)</div>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm lif-table mb-0">
+        <thead><tr><th>Category</th><th>Note / Paid to</th><th class="text-end">Estimated</th><th></th></tr></thead>
+        <tbody>
+        {% for e in estimates %}
+          <tr>
+            <td>{{ e.category.name if e.category else '—' }}</td>
+            <td class="text-muted">{{ e.paid_to or '—' }}</td>
+            <td class="text-end fw-semibold">{{ e.amount|money }}</td>
+            <td class="text-end pe-2"><a href="/expenses/{{ e.id }}/edit" class="action-link">Edit</a></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="fw-semibold"><td colspan="2">Total estimated</td><td class="text-end">{{ estimated_total|money }}</td><td></td></tr>
+        </tfoot>
+      </table>
+    </div>
+    <div class="text-muted small mt-2">
+      To turn an estimate into a real cost, open it and change its status from
+      <em>Estimate</em> to Pending or Paid.
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <div class="row g-3 mb-4">
   <div class="col-lg-5">
     <div class="card h-100 chart-panel">

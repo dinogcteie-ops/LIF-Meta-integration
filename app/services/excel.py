@@ -38,7 +38,7 @@ def _rows_expenses(db: SheetDB) -> list[list]:
     cats   = {c.id: c for c in db.list_categories()}
     rows = [["ID", "Date", "Scope", "Event", "Category", "Amount",
              "Paid Amount", "Status", "Paid To", "Notes"]]
-    for e in db.list_expenses():
+    for e in db.list_expenses(include_estimates=True):
         rows.append([
             e.id, e.date, e.scope.value,
             events[e.event_id].name if e.event_id in events else "",

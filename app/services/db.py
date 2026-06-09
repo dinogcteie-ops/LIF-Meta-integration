@@ -401,7 +401,8 @@ class Database:
     @_request_cached
     def list_expenses(self, event_id: Optional[int] = None, category_id: Optional[int] = None,
                       scope: Optional[str] = None, status: Optional[str] = None,
-                      date_from: Optional[date] = None, date_to: Optional[date] = None) -> list[Expense]:
+                      date_from: Optional[date] = None, date_to: Optional[date] = None,
+                      include_estimates: bool = False) -> list[Expense]:
         with self._s() as s:
             stmt = select(ExpenseRow)
             if event_id is not None:
@@ -412,6 +413,10 @@ class Database:
                 stmt = stmt.where(ExpenseRow.scope == scope)
             if status is not None:
                 stmt = stmt.where(ExpenseRow.payment_status == status)
+            elif not include_estimates:
+                # Estimates are planning-only — excluded from all actual-money queries
+                # by default (payables, profit, KPIs). Opt in with include_estimates=True.
+                stmt = stmt.where(ExpenseRow.payment_status != "estimated")
             if date_from is not None:
                 stmt = stmt.where(ExpenseRow.date >= date_from)
             if date_to is not None:

@@ -215,6 +215,15 @@ def event_detail(event_id: int, request: Request, db: SheetDB = Depends(get_db))
         cat_totals[label] = round(cat_totals.get(label, 0.0) + exp.amount, 2)
     cat_totals = dict(sorted(cat_totals.items(), key=lambda x: x[1], reverse=True))
 
+    # Estimated (planning-only) costs for this event — separate from actuals.
+    estimates = db.list_expenses(event_id=event_id, status="estimated")
+    cats_all = {c.id: c for c in db.list_categories()}
+    for e in estimates:
+        e.category = cats_all.get(e.category_id)
+    estimates.sort(key=lambda e: e.amount, reverse=True)
+    estimated_total = round(sum(e.amount for e in estimates), 2)
+    projected_profit = round(ep.event.quoted_amount - (ep.expense + estimated_total), 2)
+
     # Phase 1.2: payment schedule rendering
     schedule_rows = _annotate_schedule(ep.event.payment_due_dates, ep.event.payments)
     schedule_text = _schedule_to_text(ep.event.payment_due_dates)
@@ -230,6 +239,9 @@ def event_detail(event_id: int, request: Request, db: SheetDB = Depends(get_db))
         {
             "ep": ep,
             "event": ep.event,
+            "estimates": estimates,
+            "estimated_total": estimated_total,
+            "projected_profit": projected_profit,
             "categories": categories,
             "statuses": list(EventStatus),
             "event_types": list(EventType),

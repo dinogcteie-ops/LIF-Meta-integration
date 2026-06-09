@@ -58,7 +58,7 @@
         <label class="form-label">Status</label>
         <select name="payment_status" id="status-select" class="form-select">
           {% for s in statuses %}
-            <option value="{{ s.value }}" {{ 'selected' if expense and expense.payment_status == s else ('selected' if not expense and s.value == 'paid' else '') }}>{{ s.value }}</option>
+            <option value="{{ s.value }}" {{ 'selected' if expense and expense.payment_status == s else ('selected' if not expense and s.value == 'paid' else '') }}>{{ 'estimate (planning only)' if s.value == 'estimated' else s.value }}</option>
           {% endfor %}
         </select>
       </div>

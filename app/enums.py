@@ -37,6 +37,7 @@ class PaymentStatus(str, Enum):
     paid = "paid"
     pending = "pending"
     partial = "partial"
+    estimated = "estimated"   # planning-only cost; not a payable, not actual spend
 
 
 class LeadStatus(str, Enum):

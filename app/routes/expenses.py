@@ -306,6 +306,6 @@ def _parse_date(value: Optional[str]):
 def _resolve_paid_amount(status: PaymentStatus, amount: float, paid_amount: float) -> float:
     if status == PaymentStatus.paid:
         return amount
-    if status == PaymentStatus.pending:
+    if status in (PaymentStatus.pending, PaymentStatus.estimated):
         return 0.0
-    return paid_amount
+    return paid_amount   # partial

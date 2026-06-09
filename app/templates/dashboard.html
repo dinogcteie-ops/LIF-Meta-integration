@@ -173,7 +173,7 @@
 
 </div>
 
-{% if funnel and funnel.total_active %}
+{% if has_leads %}
 <div class="row g-3 mb-4">
   <div class="col-lg-6">
     <div class="card lif-card h-100" id="leadPipelineCard">
@@ -194,6 +194,57 @@
         </div>
       </div>
       <div class="card-body pt-2">
+        <!-- Filter bar: source + enquiry-date range (mirrors the loss widget) -->
+        <form method="get" class="row g-2 align-items-end mb-3" data-share-exclude>
+          <input type="hidden" name="period" value="{{ period }}">
+          <input type="hidden" name="lost_source" value="{{ lost_filters.source }}">
+          <input type="hidden" name="lost_range" value="{{ lost_filters.range }}">
+          <input type="hidden" name="lost_from" value="{{ lost_filters.from }}">
+          <input type="hidden" name="lost_to" value="{{ lost_filters.to }}">
+          <div class="col-auto">
+            <label class="form-label small mb-1">Source</label>
+            <select name="pipe_source" class="form-select form-select-sm" style="width:150px"
+                    onchange="this.form.submit()">
+              <option value="all" {{ 'selected' if pipe_filters.source == 'all' else '' }}>All sources</option>
+              {% for s in pipe_sources %}
+                <option value="{{ s }}" {{ 'selected' if pipe_filters.source == s else '' }}>{{ s }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-auto">
+            <label class="form-label small mb-1">Period</label>
+            <select name="pipe_range" class="form-select form-select-sm" style="width:160px"
+                    onchange="this.form.submit()">
+              <option value="all" {{ 'selected' if pipe_filters.range == 'all' else '' }}>All time</option>
+              <optgroup label="Month">
+                {% for mo in pipe_months %}
+                  <option value="{{ mo.value }}" {{ 'selected' if pipe_filters.range == mo.value else '' }}>{{ mo.label }}</option>
+                {% endfor %}
+              </optgroup>
+              <optgroup label="Range">
+                <option value="quarter" {{ 'selected' if pipe_filters.range == 'quarter' else '' }}>This quarter</option>
+                <option value="year" {{ 'selected' if pipe_filters.range == 'year' else '' }}>This year</option>
+                <option value="custom" {{ 'selected' if pipe_filters.range == 'custom' else '' }}>Custom range</option>
+              </optgroup>
+            </select>
+          </div>
+          {% if pipe_filters.range == 'custom' %}
+          <div class="col-auto">
+            <label class="form-label small mb-1">From</label>
+            <input type="date" name="pipe_from" value="{{ pipe_filters.from }}"
+                   class="form-control form-control-sm" style="width:150px">
+          </div>
+          <div class="col-auto">
+            <label class="form-label small mb-1">To</label>
+            <input type="date" name="pipe_to" value="{{ pipe_filters.to }}"
+                   class="form-control form-control-sm" style="width:150px">
+          </div>
+          <div class="col-auto">
+            <button class="btn btn-sm btn-dark">Apply</button>
+          </div>
+          {% endif %}
+        </form>
+
         <div class="funnel-cards funnel-compact">
           <a href="/leads?status=new" class="funnel-card">
             <div class="funnel-card-label">New</div>
@@ -209,9 +260,18 @@
             <div class="funnel-card-label">Won</div>
             <div class="funnel-card-value">{{ funnel.won_count }}</div>
           </a>
+          <div class="funnel-sep"></div>
+          <a href="/leads?status=lost" class="funnel-card funnel-lost">
+            <div class="funnel-card-label">Lost</div>
+            <div class="funnel-card-value">{{ funnel.lost_count }}</div>
+          </a>
           <div class="funnel-stat ms-auto">
-            <div class="funnel-stat-label">Conv. rate</div>
-            <div class="funnel-stat-value">{{ funnel.conversion_rate }}%</div>
+            <div class="funnel-stat-label">Won</div>
+            <div class="funnel-stat-value text-success">{{ funnel.won_rate }}%</div>
+          </div>
+          <div class="funnel-stat">
+            <div class="funnel-stat-label">Lost</div>
+            <div class="funnel-stat-value text-danger">{{ funnel.lost_rate }}%</div>
           </div>
         </div>
         {% if funnel.total_pipeline_value %}
@@ -219,6 +279,9 @@
           Pipeline value: <strong>{{ funnel.total_pipeline_value | money }}</strong>
           {% if funnel.total_won_value %} · Won: <strong>{{ funnel.total_won_value | money }}</strong>{% endif %}
         </div>
+        {% endif %}
+        {% if not funnel.total_active and not funnel.cold_count %}
+        <div class="text-muted small mt-2">No leads match these filters.</div>
         {% endif %}
       </div>
     </div>
@@ -280,6 +343,10 @@
         <!-- Filter bar (#4): source + enquiry-date range -->
         <form method="get" class="row g-2 align-items-end mb-3" data-share-exclude>
           <input type="hidden" name="period" value="{{ period }}">
+          <input type="hidden" name="pipe_source" value="{{ pipe_filters.source }}">
+          <input type="hidden" name="pipe_range" value="{{ pipe_filters.range }}">
+          <input type="hidden" name="pipe_from" value="{{ pipe_filters.from }}">
+          <input type="hidden" name="pipe_to" value="{{ pipe_filters.to }}">
           <div class="col-auto">
             <label class="form-label small mb-1">Source</label>
             <select name="lost_source" class="form-select form-select-sm" style="width:160px"

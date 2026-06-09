@@ -662,6 +662,18 @@ class LeadFunnel:
             return 0.0
         return round(self.won_count / denom * 100, 1)
 
+    @property
+    def won_rate(self) -> float:
+        """Alias of conversion_rate — share of decided/active leads that were won."""
+        return self.conversion_rate
+
+    @property
+    def lost_rate(self) -> float:
+        denom = self.new_count + self.quoted_count + self.won_count + self.lost_count
+        if not denom:
+            return 0.0
+        return round(self.lost_count / denom * 100, 1)
+
 
 @dataclass
 class LostReasonStat:
@@ -707,18 +719,16 @@ def _lead_created_date(lead: Lead) -> "date | None":
         return None
 
 
-def filter_lost_leads(leads: list[Lead], source: str | None = None,
-                      start: "date | None" = None,
-                      end: "date | None" = None) -> list[Lead]:
-    """Lost leads, optionally filtered by source and by enquiry date (created_at).
+def filter_leads(leads: list[Lead], source: str | None = None,
+                 start: "date | None" = None,
+                 end: "date | None" = None) -> list[Lead]:
+    """Leads filtered by source and by enquiry date (created_at).
 
     When a date range is set, leads with no parseable created_at are excluded.
     A ``source`` of None / "" / "all" means every source.
     """
     out: list[Lead] = []
     for lead in leads:
-        if lead.status != "lost":
-            continue
         if source and source != "all" and (lead.source or "") != source:
             continue
         if start or end:
@@ -731,6 +741,13 @@ def filter_lost_leads(leads: list[Lead], source: str | None = None,
                 continue
         out.append(lead)
     return out
+
+
+def filter_lost_leads(leads: list[Lead], source: str | None = None,
+                      start: "date | None" = None,
+                      end: "date | None" = None) -> list[Lead]:
+    """Lost leads only, filtered by source and enquiry date — see ``filter_leads``."""
+    return [l for l in filter_leads(leads, source, start, end) if l.status == "lost"]
 
 
 def lost_reason_breakdown(leads: list[Lead]) -> LostReasonBreakdown:

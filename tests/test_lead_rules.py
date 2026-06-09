@@ -3,7 +3,7 @@ lost-leads source/date filter."""
 from datetime import date
 
 from app.domain import Lead
-from app.services.reports import filter_lost_leads
+from app.services.reports import filter_leads, filter_lost_leads, lead_funnel
 
 
 # ── #1 lost forces follow-up status = done ────────────────────────────────────
@@ -66,3 +66,26 @@ def test_filter_lost_leads_by_source_and_date():
     got_all = filter_lost_leads(leads, source="all",
                                 start=date(2026, 1, 1), end=date(2026, 12, 31))
     assert {l.id for l in got_all} == {1, 2, 3}   # id 5 dropped (no date)
+
+
+def test_filter_leads_keeps_all_statuses():
+    leads = [
+        _mk(1, "won",  "Instagram", "2026-05-01T09:00:00"),
+        _mk(2, "lost", "Referral",  "2026-05-02T09:00:00"),
+        _mk(3, "new",  "Instagram", "2026-05-03T09:00:00"),
+    ]
+    assert {l.id for l in filter_leads(leads, source="Instagram")} == {1, 3}
+    got = filter_leads(leads, source="all", start=date(2026, 5, 2), end=date(2026, 5, 31))
+    assert {l.id for l in got} == {2, 3}
+
+
+def test_funnel_won_lost_rates():
+    leads = [
+        _mk(1, "won",  "", ""), _mk(2, "won", "", ""),
+        _mk(3, "lost", "", ""), _mk(4, "new", "", ""),
+        _mk(5, "cold", "", ""),   # cold excluded from the rate denominator
+    ]
+    f = lead_funnel(leads)
+    assert (f.won_count, f.lost_count) == (2, 1)
+    assert f.won_rate == 50.0      # 2 / (1 new + 2 won + 1 lost)
+    assert f.lost_rate == 25.0     # 1 / 4

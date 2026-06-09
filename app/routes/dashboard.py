@@ -11,8 +11,8 @@ from app.services.analytics import (
 )
 from app.services.reports import (
     bank_summary, cash_flow_alerts, event_profits,
-    filter_lost_leads, lead_funnel, lost_reason_breakdown, payables_aging,
-    receivables_aging, source_conversion,
+    filter_leads, filter_lost_leads, lead_funnel, lost_reason_breakdown,
+    payables_aging, receivables_aging, source_conversion,
 )
 from app.templating import templates
 
@@ -89,6 +89,10 @@ def dashboard(request: Request,
               lost_range: str = "all",
               lost_from: str = "",
               lost_to: str = "",
+              pipe_source: str = "all",
+              pipe_range: str = "all",
+              pipe_from: str = "",
+              pipe_to: str = "",
               db: SheetDB = Depends(get_db)):
     bank   = bank_summary(db)
     all_ep = event_profits(db)
@@ -138,13 +142,22 @@ def dashboard(request: Request,
     # Cash-flow alerts banner (Phase 1.4)
     alerts = cash_flow_alerts(db, today)
 
-    # Lead funnel widget (Phase 4)
+    # Lead funnel widget (Phase 4) — with its own source + date-range filter
     all_leads = db.list_leads()
-    funnel    = lead_funnel(all_leads)
     sources   = source_conversion(all_leads)
+    months    = _recent_months(today)
+    _valid    = {"all", "quarter", "year", "custom"} | {m["value"] for m in months}
+
+    if pipe_range not in _valid:
+        pipe_range = "all"
+    pipe_start, pipe_end = _lost_date_window(pipe_range, pipe_from, pipe_to, today, qtr_start)
+    funnel = lead_funnel(filter_leads(all_leads, pipe_source, pipe_start, pipe_end))
+    pipe_sources = sorted({l.source for l in all_leads if l.source} | {s.value for s in LeadSource})
+    pipe_filters = {"source": pipe_source, "range": pipe_range, "from": pipe_from, "to": pipe_to}
+    has_leads = bool(all_leads)
 
     # "Why we lose leads" widget — filter by source + enquiry-date range (#4)
-    lost_months = _recent_months(today)
+    lost_months = months
     _valid_ranges = {"all", "quarter", "year", "custom"} | {m["value"] for m in lost_months}
     if lost_range not in _valid_ranges:
         lost_range = "all"
@@ -259,6 +272,10 @@ def dashboard(request: Request,
             "sidebar_badges": sidebar_badges,
             "funnel":         funnel,
             "sources":        sources,
+            "pipe_filters":   pipe_filters,
+            "pipe_sources":   pipe_sources,
+            "pipe_months":    months,
+            "has_leads":      has_leads,
             "lost":           lost,
             "lost_filters":   lost_filters,
             "lost_sources":   lost_sources,

@@ -13,6 +13,10 @@
             onclick="shareAsImage('dashboardCapture','finance-dashboard')">
       <i class="bi bi-share"></i>Share dashboard
     </button>
+    <button type="button" class="btn btn-outline-dark icon-btn"
+            onclick="downloadAsImage('dashboardCapture','finance-dashboard')">
+      <i class="bi bi-download"></i>Download
+    </button>
     <a href="/events/new" class="btn btn-dark icon-btn"><i class="bi bi-plus-lg"></i>New event</a>
     <a href="/expenses/new" class="btn btn-outline-dark icon-btn"><i class="bi bi-receipt-cutoff"></i>New expense</a>
   </div>
@@ -180,6 +184,10 @@
                   onclick="shareAsImage('leadPipelineCard','lead-pipeline')">
             <i class="bi bi-share"></i>Share
           </button>
+          <button type="button" class="btn btn-sm btn-outline-secondary icon-btn"
+                  onclick="downloadAsImage('leadPipelineCard','lead-pipeline')">
+            <i class="bi bi-download"></i>Download
+          </button>
           <a href="/leads" class="btn btn-sm btn-outline-secondary icon-btn">
             <i class="bi bi-arrow-right"></i>All leads
           </a>
@@ -259,6 +267,10 @@
                   onclick="shareAsImage('lostLeadsCard','why-we-lose-leads')">
             <i class="bi bi-share"></i>Share
           </button>
+          <button type="button" class="btn btn-sm btn-outline-secondary icon-btn"
+                  onclick="downloadAsImage('lostLeadsCard','why-we-lose-leads')">
+            <i class="bi bi-download"></i>Download
+          </button>
           <a href="/leads?status=lost" class="btn btn-sm btn-outline-secondary icon-btn">
             <i class="bi bi-arrow-right"></i>View lost leads
           </a>
@@ -280,12 +292,19 @@
           </div>
           <div class="col-auto">
             <label class="form-label small mb-1">Period</label>
-            <select name="lost_range" class="form-select form-select-sm" style="width:150px"
+            <select name="lost_range" class="form-select form-select-sm" style="width:160px"
                     onchange="this.form.submit()">
-              {% set ranges = [('all','All time'),('month','This month'),('quarter','This quarter'),('year','This year'),('custom','Custom range')] %}
-              {% for val, label in ranges %}
-                <option value="{{ val }}" {{ 'selected' if lost_filters.range == val else '' }}>{{ label }}</option>
-              {% endfor %}
+              <option value="all" {{ 'selected' if lost_filters.range == 'all' else '' }}>All time</option>
+              <optgroup label="Month">
+                {% for mo in lost_months %}
+                  <option value="{{ mo.value }}" {{ 'selected' if lost_filters.range == mo.value else '' }}>{{ mo.label }}</option>
+                {% endfor %}
+              </optgroup>
+              <optgroup label="Range">
+                <option value="quarter" {{ 'selected' if lost_filters.range == 'quarter' else '' }}>This quarter</option>
+                <option value="year" {{ 'selected' if lost_filters.range == 'year' else '' }}>This year</option>
+                <option value="custom" {{ 'selected' if lost_filters.range == 'custom' else '' }}>Custom range</option>
+              </optgroup>
             </select>
           </div>
           {% if lost_filters.range == 'custom' %}

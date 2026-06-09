@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, Request
 
@@ -45,17 +45,40 @@ def _parse_iso(s: str):
         return None
 
 
+def _recent_months(today: date, n: int = 12) -> list[dict]:
+    """Recent months for the loss filter, newest first: {'value':'2026-06','label':'June 2026'}."""
+    out: list[dict] = []
+    y, m = today.year, today.month
+    for _ in range(n):
+        out.append({"value": f"{y:04d}-{m:02d}", "label": date(y, m, 1).strftime("%B %Y")})
+        m -= 1
+        if m == 0:
+            m, y = 12, y - 1
+    return out
+
+
+def _month_window(value: str):
+    """(first_day, last_day) for a 'YYYY-MM' value, or (None, None) if malformed."""
+    try:
+        y, m = int(value[:4]), int(value[5:7])
+        start = date(y, m, 1)
+        nxt = date(y + 1, 1, 1) if m == 12 else date(y, m + 1, 1)
+        return start, nxt - timedelta(days=1)
+    except (ValueError, IndexError):
+        return None, None
+
+
 def _lost_date_window(lost_range: str, lost_from: str, lost_to: str,
                       today: date, qtr_start: date):
     """(start, end) enquiry-date window for the lost-leads filter; (None, None) = all time."""
-    if lost_range == "month":
-        return date(today.year, today.month, 1), today
     if lost_range == "quarter":
         return qtr_start, today
     if lost_range == "year":
         return date(today.year, 1, 1), today
     if lost_range == "custom":
         return _parse_iso(lost_from), _parse_iso(lost_to)
+    if len(lost_range) == 7 and lost_range[4] == "-":   # explicit 'YYYY-MM'
+        return _month_window(lost_range)
     return None, None
 
 
@@ -121,7 +144,9 @@ def dashboard(request: Request,
     sources   = source_conversion(all_leads)
 
     # "Why we lose leads" widget — filter by source + enquiry-date range (#4)
-    if lost_range not in ("all", "month", "quarter", "year", "custom"):
+    lost_months = _recent_months(today)
+    _valid_ranges = {"all", "quarter", "year", "custom"} | {m["value"] for m in lost_months}
+    if lost_range not in _valid_ranges:
         lost_range = "all"
     lost_start, lost_end = _lost_date_window(lost_range, lost_from, lost_to, today, qtr_start)
     lost_leads = filter_lost_leads(all_leads, lost_source, lost_start, lost_end)
@@ -237,6 +262,7 @@ def dashboard(request: Request,
             "lost":           lost,
             "lost_filters":   lost_filters,
             "lost_sources":   lost_sources,
+            "lost_months":    lost_months,
             "lost_any":       lost_any,
             # Sprint 1 & 5 analytics
             "kpis":           kpis,

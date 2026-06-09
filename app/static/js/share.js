@@ -1,22 +1,20 @@
-/* Share a DOM section as a PNG image.
+/* Capture a DOM section as a PNG and either share it or download it.
  *
- * shareAsImage(elementId, filename):
- *   - renders the element to a canvas via html2canvas (loaded separately),
- *   - hides any [data-share-exclude] children during capture (buttons, filters),
- *   - uses the Web Share API with a file when available (mobile -> WhatsApp, etc.),
- *   - otherwise falls back to downloading the PNG.
+ *   shareAsImage(elementId, filename)    -> Web Share API (mobile -> WhatsApp), else download
+ *   downloadAsImage(elementId, filename) -> always downloads the PNG directly
+ *
+ * Any [data-share-exclude] children (buttons, filter bars) are hidden during capture.
+ * Requires html2canvas to be loaded on the page.
  */
-async function shareAsImage(elementId, filename) {
+async function _capturePng(elementId) {
   const el = document.getElementById(elementId);
-  if (!el) return;
+  if (!el) return null;
   if (typeof html2canvas === 'undefined') {
-    alert('Image sharing is unavailable (html2canvas not loaded).');
-    return;
+    alert('Image capture is unavailable (html2canvas not loaded).');
+    return null;
   }
-
   const hidden = el.querySelectorAll('[data-share-exclude]');
   hidden.forEach((n) => { n.dataset._prevDisplay = n.style.display; n.style.display = 'none'; });
-
   try {
     const canvas = await html2canvas(el, {
       backgroundColor: '#ffffff',
@@ -24,28 +22,50 @@ async function shareAsImage(elementId, filename) {
       useCORS: true,
       logging: false,
     });
-    const blob = await new Promise((res) => canvas.toBlob(res, 'image/png'));
-    if (!blob) throw new Error('Could not render the image.');
-    const file = new File([blob], filename + '.png', { type: 'image/png' });
+    return await new Promise((res) => canvas.toBlob(res, 'image/png'));
+  } finally {
+    hidden.forEach((n) => { n.style.display = n.dataset._prevDisplay || ''; delete n.dataset._prevDisplay; });
+  }
+}
 
+function _downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename + '.png';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function shareAsImage(elementId, filename) {
+  try {
+    const blob = await _capturePng(elementId);
+    if (!blob) return;
+    const file = new File([blob], filename + '.png', { type: 'image/png' });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       await navigator.share({ files: [file], title: 'Life in Frame', text: filename });
     } else {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = file.name;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      _downloadBlob(blob, filename); // desktop fallback
     }
   } catch (err) {
     if (err && err.name === 'AbortError') return; // user dismissed the share sheet
     console.error('shareAsImage failed', err);
     alert('Could not generate the image: ' + (err && err.message ? err.message : err));
-  } finally {
-    hidden.forEach((n) => { n.style.display = n.dataset._prevDisplay || ''; delete n.dataset._prevDisplay; });
   }
 }
+
+async function downloadAsImage(elementId, filename) {
+  try {
+    const blob = await _capturePng(elementId);
+    if (!blob) return;
+    _downloadBlob(blob, filename);
+  } catch (err) {
+    console.error('downloadAsImage failed', err);
+    alert('Could not generate the image: ' + (err && err.message ? err.message : err));
+  }
+}
+
 window.shareAsImage = shareAsImage;
+window.downloadAsImage = downloadAsImage;

@@ -7,6 +7,7 @@ converts to/from domain dataclasses at the boundary.
 """
 from __future__ import annotations
 
+import contextvars
 import functools
 import logging
 from contextlib import contextmanager
@@ -122,16 +123,25 @@ def _metric(r: MetaMetricRow) -> MetaMetric:
 
 # ─── Database ────────────────────────────────────────────────────────────────
 
+# Per-request read cache. A ContextVar (not an instance attribute) so it is
+# isolated per request even though ``get_db()`` hands out a process-wide singleton:
+# concurrent requests never share or clobber each other's cache. ``None`` = disabled.
+_request_cache: "contextvars.ContextVar[dict | None]" = contextvars.ContextVar(
+    "_db_request_cache", default=None
+)
+
+
 def _request_cached(fn):
     """Memoize a read method for the duration of a request, when caching is enabled.
 
     Keyed on (method name, args, kwargs). Inert unless ``enable_cache()`` was called
-    (so normal mutating flows are never cached). Used to collapse the dashboard's many
-    repeated table reads into one round-trip each.
+    (so normal mutating flows are never cached). Collapses a page's many repeated
+    table reads (e.g. ``list_expenses`` called 5× across report helpers) into one
+    round-trip each — the dominant source of page latency against remote Supabase.
     """
     @functools.wraps(fn)
     def wrapper(self, *args, **kwargs):
-        cache = getattr(self, "_cache", None)
+        cache = _request_cache.get()
         if cache is None:
             return fn(self, *args, **kwargs)
         key = (fn.__name__, args, tuple(sorted(kwargs.items())))
@@ -144,14 +154,17 @@ def _request_cached(fn):
 class Database:
     """Postgres/SQLite-backed implementation of the LIF data layer."""
 
-    _cache: "dict | None" = None   # per-request read cache; None = disabled
-
     def enable_cache(self) -> None:
-        """Start caching read methods for this request (call disable_cache() after)."""
-        self._cache = {}
+        """Start caching read methods for this request (call disable_cache() after).
+
+        Backed by a ContextVar — must be called from the same context that runs the
+        request (e.g. an HTTP middleware), not a threadpooled ``yield`` dependency,
+        whose context changes don't propagate back to the endpoint.
+        """
+        _request_cache.set({})
 
     def disable_cache(self) -> None:
-        self._cache = None
+        _request_cache.set(None)
 
     @contextmanager
     def _s(self) -> Iterator:
@@ -305,6 +318,16 @@ class Database:
                 return None
             r.last_reminder_sent = reminder_date
             r.reminder_notes = notes
+            s.flush()
+            return _event(r)
+
+    def set_event_client(self, event_id: int, client_id: int) -> Optional[Event]:
+        """Link an event to a Client row without disturbing its other fields."""
+        with self._s() as s:
+            r = s.get(EventRow, event_id)
+            if r is None:
+                return None
+            r.client_id = client_id
             s.flush()
             return _event(r)
 
@@ -473,6 +496,16 @@ class Database:
                 r.recurring_day = recurring_day
             if payment_type is not None:
                 r.payment_type = payment_type or None
+            s.flush()
+            return _expense(r)
+
+    def set_expense_payee(self, expense_id: int, payee_id: int) -> Optional[Expense]:
+        """Link an expense to a Payee row without disturbing its other fields."""
+        with self._s() as s:
+            r = s.get(ExpenseRow, expense_id)
+            if r is None:
+                return None
+            r.payee_id = payee_id
             s.flush()
             return _expense(r)
 

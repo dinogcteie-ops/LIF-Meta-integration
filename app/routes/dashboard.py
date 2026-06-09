@@ -155,20 +155,6 @@ def dashboard_events(request: Request, period: str = "quarter",
                                       {"recent_events": filtered, "period": period})
 
 
-def _cached_db(db: SheetDB = Depends(get_db)):
-    """Enable the per-request read cache for the duration of this request only.
-
-    The dashboard reads the same tables many times across its report functions;
-    caching collapses those to one round-trip each. Cleared in finally so it never
-    leaks to other (write) requests.
-    """
-    db.enable_cache()
-    try:
-        yield db
-    finally:
-        db.disable_cache()
-
-
 @router.get("/dashboard")
 def dashboard(request: Request,
               period: str = "quarter",
@@ -180,7 +166,7 @@ def dashboard(request: Request,
               pipe_range: str = "all",
               pipe_from: str = "",
               pipe_to: str = "",
-              db: SheetDB = Depends(_cached_db)):
+              db: SheetDB = Depends(get_db)):
     bank   = bank_summary(db)
     all_ep = event_profits(db)
 

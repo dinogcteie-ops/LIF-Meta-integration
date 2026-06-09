@@ -429,6 +429,29 @@ a:hover {
   font-size: .75rem;
 }
 
+/* Pending-from-clients breakdown by event status (dashboard stat card) */
+.pending-split {
+  display: flex;
+  flex-direction: column;
+  gap: .28rem;
+  margin-top: .6rem;
+  font-size: .8rem;
+  color: var(--lif-muted);
+}
+.pending-split-item {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+}
+.pending-split-item .cat-dot {
+  display: inline-block;
+}
+.pending-split-item strong {
+  margin-left: auto;
+  color: var(--lif-text, inherit);
+  font-weight: 600;
+}
+
 .advance-note {
   display: inline-flex;
   align-items: center;
@@ -2379,6 +2402,10 @@ a:hover {
 .seasonal-revenue {
   font-size: .65rem;
   opacity: .8;
+}
+
+.seasonal-revenue-avg {
+  opacity: .6;
 }
 
 /* ── Donut Chart Container ─────────────────────────────────────────────── */

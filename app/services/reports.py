@@ -64,6 +64,11 @@ class BankSummary:
     total_pending_from_clients: float = 0.0
     booked_advance: float = 0.0        # portion of total_income from booked events
     booked_advance_count: int = 0      # number of booked events that have at least one payment
+    # Pending-from-clients split by event status, so the headline figure is legible
+    # instead of one lump sum (a completed shoot's balance ≠ a booked deposit owed).
+    pending_completed: float = 0.0
+    pending_ongoing: float = 0.0       # EventStatus.active
+    pending_booked: float = 0.0
 
     @property
     def balance(self) -> float:
@@ -154,11 +159,21 @@ def bank_summary(db: SheetDB) -> BankSummary:
         if ev.status == EventStatus.cancelled:   # Sprint 8 Bug A: exclude cancelled events
             continue
         income = sum(p.amount for p in ev.payments)
-        summary.total_pending_from_clients += max(0.0, ev.quoted_amount - income)
+        pending = max(0.0, ev.quoted_amount - income)
+        summary.total_pending_from_clients += pending
+        if ev.status == EventStatus.completed:
+            summary.pending_completed += pending
+        elif ev.status == EventStatus.booked:
+            summary.pending_booked += pending
+        else:   # active / anything else still in progress
+            summary.pending_ongoing += pending
     summary.total_income = round(summary.total_income, 2)
     summary.total_paid_expense = round(summary.total_paid_expense, 2)
     summary.outstanding_payable = round(summary.outstanding_payable, 2)
     summary.total_pending_from_clients = round(summary.total_pending_from_clients, 2)
+    summary.pending_completed = round(summary.pending_completed, 2)
+    summary.pending_ongoing = round(summary.pending_ongoing, 2)
+    summary.pending_booked = round(summary.pending_booked, 2)
     summary.booked_advance = round(summary.booked_advance, 2)
     return summary
 

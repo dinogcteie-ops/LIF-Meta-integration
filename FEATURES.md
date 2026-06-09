@@ -9,7 +9,7 @@ when you add or ship a feature (see the **Release workflow** in [CLAUDE.md](CLAU
 - 🔄 **On branch** — built & verified, pending the end-of-month batch deploy
 - 📝 **Planned** — agreed/backlog, not started
 
-_Last updated: 2026-06-09 (batch on `feat/lead-workflow-and-loss-analytics`, pending end-of-month deploy)._
+_Last updated: 2026-06-10 (latency cache + dashboard breakdowns + directory backfill, pending end-of-month deploy)._
 
 ---
 
@@ -20,6 +20,9 @@ _Last updated: 2026-06-09 (batch on `feat/lead-workflow-and-loss-analytics`, pen
 | Password-gated app + sessions | ✅ | `app/auth.py`; `/login`, `APP_PASSWORD` |
 | Finance dashboard (KPIs, sparklines, cash-flow alerts, drill-down modals) | ✅ | `app/routes/dashboard.py`, `app/templates/dashboard.html` |
 | Reports & analytics (monthly/quarterly history, projections, YoY, seasonal) | ✅ | `app/services/reports.py`, `analytics.py` |
+| **Per-request read cache** (GET-only middleware) — collapses repeated table reads to one round-trip each, cutting page-to-page latency | 🔄 | `read_cache` in `app/main.py`; ContextVar cache in `db.py` |
+| **Pending-from-clients split** by event status (completed / ongoing / booked) on the dashboard card | 🔄 | `BankSummary.pending_*` in `reports.py` |
+| **Seasonal booking pattern** shows both total and average revenue per month | 🔄 | `seasonal_analysis`; `dashboard.html` |
 | Settings (studio branding, finance defaults, recurring expenses) + audit log | ✅ | `app/routes/settings.py` |
 | Calendar, quick-add, export, workshop | ✅ | `app/routes/{calendar,quick,export,workshop}.py` |
 
@@ -37,6 +40,7 @@ _Last updated: 2026-06-09 (batch on `feat/lead-workflow-and-loss-analytics`, pen
 |---|---|---|
 | Clients directory + per-client revenue stats | ✅ | |
 | Payees/vendors + spend stats | ✅ | |
+| **Backfill Clients & Payees** from existing completed/booked events + expense `paid_to` | 🔄 | one-time `migrate_backfill_directory.py` (dry-run default, `--apply`, idempotent) |
 | Expenses with scopes (event/company/personal) + monthly budgets | ✅ | `budget_vs_actual` |
 | **Estimate** expense status — plan event costs separately from actuals; projected profit per event | 🔄 | `PaymentStatus.estimated`; `list_expenses` excludes by default |
 | Receivables & Payables aging (buckets, reminders) | ✅ | `receivables_aging`, `payables_aging` |

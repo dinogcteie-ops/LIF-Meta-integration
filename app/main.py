@@ -35,6 +35,26 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="Life in Frame Tracker", lifespan=lifespan)
 
+
+@app.middleware("http")
+async def read_cache(request: Request, call_next):
+    """Enable the per-request read cache for every GET, so a page's many repeated
+    table reads collapse to one round-trip each (the main page-to-page latency
+    against remote Supabase). GET-only: mutating requests stay uncached so a handler
+    never reads its own stale pre-write snapshot. The cache is a ContextVar isolated
+    per request — set here (middleware shares the endpoint's context, unlike a
+    threadpooled dependency) and cleared in ``finally``."""
+    if request.method != "GET":
+        return await call_next(request)
+    from app.services.db import get_db
+    db = get_db()
+    db.enable_cache()
+    try:
+        return await call_next(request)
+    finally:
+        db.disable_cache()
+
+
 app.add_middleware(LoginRequiredMiddleware)
 app.add_middleware(
     SessionMiddleware,

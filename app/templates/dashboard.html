@@ -119,7 +119,20 @@
         <div class="stat-label">Pending from clients</div>
         <div class="stat-value text-danger">{{ bank.total_pending_from_clients|money }}</div>
       </div>
-      <div class="stat-sub">Amounts still to be collected</div>
+      <div class="pending-split">
+        <span class="pending-split-item" title="Balance owed on delivered/completed shoots">
+          <span class="cat-dot" style="background: var(--lif-green);"></span>
+          Completed <strong>{{ bank.pending_completed|money }}</strong>
+        </span>
+        <span class="pending-split-item" title="Balance owed on shoots currently in progress">
+          <span class="cat-dot" style="background: var(--lif-blue);"></span>
+          Ongoing <strong>{{ bank.pending_ongoing|money }}</strong>
+        </span>
+        <span class="pending-split-item" title="Balance still due on booked (future) shoots">
+          <span class="cat-dot" style="background: var(--lif-amber);"></span>
+          Booked <strong>{{ bank.pending_booked|money }}</strong>
+        </span>
+      </div>
       <div class="stat-drill-hint"><i class="bi bi-arrow-right-circle"></i> Open Receivables</div>
     </div>
   </a>
@@ -261,8 +274,9 @@
     <div class="seasonal-cell" style="background: rgba(47,125,75,{{ intensity / 200 }});">
       <span class="seasonal-month">{{ s.month_name }}</span>
       <span class="seasonal-count">{{ s.event_count }}</span>
-      {% if s.avg_revenue > 0 %}
-      <span class="seasonal-revenue">avg {{ s.avg_revenue|money }}</span>
+      {% if s.total_revenue > 0 %}
+      <span class="seasonal-revenue">total {{ s.total_revenue|money }}</span>
+      <span class="seasonal-revenue seasonal-revenue-avg">avg {{ s.avg_revenue|money }}</span>
       {% endif %}
     </div>
     {% endfor %}

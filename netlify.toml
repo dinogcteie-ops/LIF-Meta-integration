@@ -9,6 +9,11 @@
   publish = "netlify_public"
   functions = "netlify/functions"
   command = "mkdir -p netlify_public && echo 'LIF CRM is served by Netlify proxy.' > netlify_public/index.html"
+  # Cost control: Netlify only hosts the proxy + cron functions, which rarely change,
+  # but every push to main would otherwise trigger a paid Netlify deploy (~15 credits).
+  # Skip the Netlify build (exit 0) unless netlify/ or netlify.toml actually changed.
+  # Render still auto-deploys the app on every push — this only affects Netlify.
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- netlify netlify.toml"
 
 # Daily Meta metrics refresh (also keeps the free Render instance warm).
 [functions."refresh-meta"]

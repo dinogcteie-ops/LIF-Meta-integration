@@ -657,6 +657,20 @@ a:hover {
   color: var(--lif-red);
 }
 
+/* Neutral high-contrast pill for Status / Scope columns in the drill-down modals */
+.tag-badge {
+  display: inline-block;
+  background: #e8ebef;
+  color: #334155;
+  border: 1px solid #cbd2db;
+  border-radius: 99px;
+  padding: .12rem .55rem;
+  font-size: .72rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-transform: capitalize;
+}
+
 .status-partial,
 .pill-partial,
 .pct-ok {

@@ -51,16 +51,52 @@
 </div>
 {% endif %}
 
-<!-- Status filter pills -->
-<div class="filter-bar mb-4">
-  <a href="/leads" class="filter-pill {{ 'active' if not filter_status else '' }}">All</a>
-  {% for s in statuses %}
-    <a href="/leads?status={{ s.value }}"
-       class="filter-pill lead-status-{{ s.value }} {{ 'active' if filter_status == s.value else '' }}">
-      {{ s.value | capitalize }}
-    </a>
-  {% endfor %}
-</div>
+<!-- Filters: status / period (enquiry date) / event type / source -->
+<form method="get" class="row g-2 align-items-end mb-4">
+  <div class="col-auto">
+    <label class="form-label small mb-1">Status</label>
+    <select name="status" class="form-select form-select-sm" style="width:130px" onchange="this.form.submit()">
+      <option value="">All</option>
+      {% for s in statuses %}
+        <option value="{{ s.value }}" {{ 'selected' if filter_status == s.value else '' }}>{{ s.value | capitalize }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <label class="form-label small mb-1">Period <span class="text-muted">(enquiry date)</span></label>
+    <select name="period" class="form-select form-select-sm" style="width:140px" onchange="this.form.submit()">
+      {% for val, label in periods %}
+        <option value="{{ val }}" {{ 'selected' if filter_period == val else '' }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <label class="form-label small mb-1">Event type</label>
+    <select name="event_type" class="form-select form-select-sm" style="width:150px" onchange="this.form.submit()">
+      <option value="">All</option>
+      {% for t in event_types %}
+        <option value="{{ t.value }}" {{ 'selected' if filter_event_type == t.value else '' }}>{{ t.value }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <label class="form-label small mb-1">Source</label>
+    <select name="source" class="form-select form-select-sm" style="width:140px" onchange="this.form.submit()">
+      <option value="">All</option>
+      {% for s in lead_sources %}
+        <option value="{{ s }}" {{ 'selected' if filter_source == s else '' }}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% if filter_status or filter_event_type or filter_source or filter_period != 'all' %}
+  <div class="col-auto">
+    <a href="/leads" class="btn btn-sm btn-outline-secondary">Clear filters</a>
+  </div>
+  {% endif %}
+  <div class="col-auto ms-auto align-self-center">
+    <span class="text-muted small">{{ leads | length }} lead{{ 's' if leads | length != 1 else '' }}</span>
+  </div>
+</form>
 
 {% if leads %}
 <div class="card lif-card">

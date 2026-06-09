@@ -379,7 +379,7 @@
             <tr>
               <td><a href="/events/{{ r.event.id }}" class="event-link">{{ r.event.name }}</a></td>
               <td class="text-muted small">{{ r.event.event_date or '—' }}</td>
-              <td><span class="badge bg-secondary bg-opacity-10 text-secondary border">{{ r.event.status.value }}</span></td>
+              <td><span class="tag-badge">{{ r.event.status.value }}</span></td>
               <td class="text-end money text-success">{{ r.income|money }}</td>
             </tr>
             {% else %}
@@ -415,7 +415,7 @@
           <span class="fw-semibold text-capitalize d-flex align-items-center gap-2">
             <i class="bi {{ scope_icon }} text-muted" style="font-size:.85rem"></i>
             {{ scope_key }}
-            <span class="badge bg-secondary bg-opacity-10 text-secondary border" style="font-weight:500">
+            <span class="tag-badge" style="font-weight:500">
               {{ exps|length }} item{{ 's' if exps|length != 1 else '' }}
             </span>
           </span>
@@ -523,7 +523,7 @@
             <tr>
               <td class="text-muted small">{{ e.date }}</td>
               <td>{{ e.cat_name }}</td>
-              <td><span class="badge bg-secondary bg-opacity-10 text-secondary border">{{ e.scope }}</span></td>
+              <td><span class="tag-badge">{{ e.scope }}</span></td>
               <td class="text-end money text-danger">{{ e.amount|money }}</td>
               <td class="text-muted small">{{ e.paid_to or '—' }}</td>
             </tr>
@@ -609,7 +609,7 @@
             <tr>
               <td class="text-muted small">{{ e.date }}</td>
               <td>{{ e.cat_name }}</td>
-              <td><span class="badge bg-secondary bg-opacity-10 text-secondary border">{{ e.scope }}</span></td>
+              <td><span class="tag-badge">{{ e.scope }}</span></td>
               <td class="text-end money text-danger">{{ e.amount|money }}</td>
               <td class="text-muted small">{{ e.paid_to or '—' }}</td>
             </tr>
@@ -667,7 +667,7 @@
             {% if rev_by_status.get(s) %}
             {% set d = rev_by_status[s] %}
             <tr>
-              <td><span class="badge bg-secondary bg-opacity-10 text-secondary border text-capitalize">{{ s }}</span></td>
+              <td><span class="tag-badge text-capitalize">{{ s }}</span></td>
               <td class="text-center">{{ d.count }}</td>
               <td class="text-end money">{{ d.quoted|round(2)|money }}</td>
               <td class="text-end money text-success">{{ d.received|round(2)|money }}</td>

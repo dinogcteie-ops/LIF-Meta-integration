@@ -11,26 +11,75 @@ from app.templating import templates
 router = APIRouter()
 
 _STATUSES = list(LeadStatus)
+_PERIODS = [("all", "All time"), ("today", "Today"),
+            ("month", "This month"), ("quarter", "This quarter")]
+
+
+def _period_window(period: str, today):
+    """(start, end) on lead enquiry date (created_at); (None, None) = all time."""
+    if period == "today":
+        return today, today
+    if period == "month":
+        return today.replace(day=1), today
+    if period == "quarter":
+        q = (today.month - 1) // 3
+        return date_cls(today.year, q * 3 + 1, 1), today
+    return None, None
+
+
+def _created_date(lead):
+    raw = (lead.created_at or "")[:10]
+    try:
+        return date_cls.fromisoformat(raw)
+    except ValueError:
+        return None
 
 
 @router.get("/leads")
 def list_leads(
     request: Request,
     status: str = "",
+    period: str = "all",
+    event_type: str = "",
+    source: str = "",
     db: SheetDB = Depends(get_db),
 ):
-    leads = db.list_leads(status=status or None)
     all_leads = db.list_leads()
+    if period not in {p for p, _ in _PERIODS}:
+        period = "all"
+    start, end = _period_window(period, date_cls.today())
+
+    leads = []
+    for l in all_leads:
+        if status and l.status != status:
+            continue
+        if event_type and l.event_type != event_type:
+            continue
+        if source and l.source != source:
+            continue
+        if start or end:
+            d = _created_date(l)
+            if d is None or (start and d < start) or (end and d > end):
+                continue
+        leads.append(l)
+
     from app.services.reports import lead_funnel, source_conversion
     funnel  = lead_funnel(all_leads)
     sources = source_conversion(all_leads)
+    lead_sources = sorted({l.source for l in all_leads if l.source} | {s.value for s in LeadSource})
     return templates.TemplateResponse(
         request, "leads/list.html", {
             "leads":        leads,
             "funnel":       funnel,
             "sources":      sources,
             "statuses":     _STATUSES,
-            "filter_status": status,
+            "event_types":  list(EventType),
+            "lead_sources": lead_sources,
+            "periods":      _PERIODS,
+            "filter_status":     status,
+            "filter_period":     period,
+            "filter_event_type": event_type,
+            "filter_source":     source,
         }
     )
 

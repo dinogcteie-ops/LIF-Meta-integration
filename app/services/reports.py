@@ -656,6 +656,11 @@ class LeadFunnel:
         return self.new_count + self.quoted_count + self.won_count + self.lost_count
 
     @property
+    def total_all(self) -> int:
+        """Every lead in the (filtered) set, including cold."""
+        return self.total_active + self.cold_count
+
+    @property
     def conversion_rate(self) -> float:
         denom = self.new_count + self.quoted_count + self.won_count + self.lost_count
         if not denom:

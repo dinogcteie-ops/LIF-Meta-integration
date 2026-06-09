@@ -82,6 +82,65 @@ def _lost_date_window(lost_range: str, lost_from: str, lost_to: str,
     return None, None
 
 
+def _lead_widget_ctx(db, today, qtr_start,
+                     pipe_source, pipe_range, pipe_from, pipe_to,
+                     lost_source, lost_range, lost_from, lost_to) -> dict:
+    """Context for the lead pipeline + loss widgets — one db.list_leads() call.
+
+    Shared by the full dashboard and the HTMX partial endpoint so a filter change
+    re-renders only these widgets instead of reloading the whole dashboard.
+    """
+    all_leads = db.list_leads()
+    months    = _recent_months(today)
+    valid     = {"all", "quarter", "year", "custom"} | {m["value"] for m in months}
+
+    # Lead pipeline (all statuses, filtered by source + enquiry date)
+    if pipe_range not in valid:
+        pipe_range = "all"
+    p_start, p_end = _lost_date_window(pipe_range, pipe_from, pipe_to, today, qtr_start)
+    funnel = lead_funnel(filter_leads(all_leads, pipe_source, p_start, p_end))
+
+    # "Why we lose leads" (lost only)
+    if lost_range not in valid:
+        lost_range = "all"
+    l_start, l_end = _lost_date_window(lost_range, lost_from, lost_to, today, qtr_start)
+    lost = lost_reason_breakdown(filter_lost_leads(all_leads, lost_source, l_start, l_end))
+
+    all_sources = sorted({l.source for l in all_leads if l.source} | {s.value for s in LeadSource})
+    return {
+        "funnel":       funnel,
+        "sources":      source_conversion(all_leads),
+        "pipe_filters": {"source": pipe_source, "range": pipe_range, "from": pipe_from, "to": pipe_to},
+        "pipe_sources": all_sources,
+        "pipe_months":  months,
+        "has_leads":    bool(all_leads),
+        "lost":         lost,
+        "lost_filters": {"source": lost_source, "range": lost_range, "from": lost_from, "to": lost_to},
+        "lost_sources": all_sources,
+        "lost_months":  months,
+        "lost_any":     any(l.status == "lost" for l in all_leads),
+    }
+
+
+@router.get("/dashboard/lead-widgets")
+def dashboard_lead_widgets(request: Request,
+                           period: str = "quarter",
+                           pipe_source: str = "all", pipe_range: str = "all",
+                           pipe_from: str = "", pipe_to: str = "",
+                           lost_source: str = "all", lost_range: str = "all",
+                           lost_from: str = "", lost_to: str = "",
+                           db: SheetDB = Depends(get_db)):
+    """HTMX partial — just the lead pipeline + loss widgets, for fast in-place filtering."""
+    today = date.today()
+    qtr = (today.month - 1) // 3 + 1
+    qtr_start = date(today.year, (qtr - 1) * 3 + 1, 1)
+    ctx = _lead_widget_ctx(db, today, qtr_start,
+                           pipe_source, pipe_range, pipe_from, pipe_to,
+                           lost_source, lost_range, lost_from, lost_to)
+    ctx["period"] = period
+    return templates.TemplateResponse(request, "dashboard/_lead_widgets.html", ctx)
+
+
 @router.get("/dashboard")
 def dashboard(request: Request,
               period: str = "quarter",
@@ -142,38 +201,10 @@ def dashboard(request: Request,
     # Cash-flow alerts banner (Phase 1.4)
     alerts = cash_flow_alerts(db, today)
 
-    # Lead funnel widget (Phase 4) — with its own source + date-range filter
-    all_leads = db.list_leads()
-    sources   = source_conversion(all_leads)
-    months    = _recent_months(today)
-    _valid    = {"all", "quarter", "year", "custom"} | {m["value"] for m in months}
-
-    if pipe_range not in _valid:
-        pipe_range = "all"
-    pipe_start, pipe_end = _lost_date_window(pipe_range, pipe_from, pipe_to, today, qtr_start)
-    funnel = lead_funnel(filter_leads(all_leads, pipe_source, pipe_start, pipe_end))
-    pipe_sources = sorted({l.source for l in all_leads if l.source} | {s.value for s in LeadSource})
-    pipe_filters = {"source": pipe_source, "range": pipe_range, "from": pipe_from, "to": pipe_to}
-    has_leads = bool(all_leads)
-
-    # "Why we lose leads" widget — filter by source + enquiry-date range (#4)
-    lost_months = months
-    _valid_ranges = {"all", "quarter", "year", "custom"} | {m["value"] for m in lost_months}
-    if lost_range not in _valid_ranges:
-        lost_range = "all"
-    lost_start, lost_end = _lost_date_window(lost_range, lost_from, lost_to, today, qtr_start)
-    lost_leads = filter_lost_leads(all_leads, lost_source, lost_start, lost_end)
-    lost = lost_reason_breakdown(lost_leads)
-    # Source options: every source seen on lost leads, unioned with the standard set.
-    lost_sources = sorted(
-        {l.source for l in all_leads if l.status == "lost" and l.source}
-        | {s.value for s in LeadSource}
-    )
-    lost_filters = {
-        "source": lost_source, "range": lost_range,
-        "from": lost_from, "to": lost_to,
-    }
-    lost_any = any(l.status == "lost" for l in all_leads)
+    # Lead pipeline + loss widgets (shared with the HTMX partial endpoint)
+    lead_ctx = _lead_widget_ctx(db, today, qtr_start,
+                                pipe_source, pipe_range, pipe_from, pipe_to,
+                                lost_source, lost_range, lost_from, lost_to)
 
     # Sidebar overdue counts (QW3 — keep cheap by reusing aging compute)
     _, rec_totals = receivables_aging(db, today)
@@ -270,17 +301,7 @@ def dashboard(request: Request,
             "today": today,
             "alerts":         alerts,
             "sidebar_badges": sidebar_badges,
-            "funnel":         funnel,
-            "sources":        sources,
-            "pipe_filters":   pipe_filters,
-            "pipe_sources":   pipe_sources,
-            "pipe_months":    months,
-            "has_leads":      has_leads,
-            "lost":           lost,
-            "lost_filters":   lost_filters,
-            "lost_sources":   lost_sources,
-            "lost_months":    lost_months,
-            "lost_any":       lost_any,
+            **lead_ctx,
             # Sprint 1 & 5 analytics
             "kpis":           kpis,
             "sparklines":     sparklines,

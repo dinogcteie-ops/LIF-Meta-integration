@@ -1,0 +1,103 @@
+{# Event performance table + period toggle. Swapped in place by HTMX (target
+   #eventPerformance) when the period changes, so the dashboard never reloads.
+   Rendered inline (dashboard.html include) and by GET /dashboard/events. #}
+<div id="eventPerformance">
+<div class="card section-card">
+  <div class="section-header">
+    <div>
+      <h5 class="section-title">Event performance</h5>
+      <div class="text-muted small mt-1">Shoots scoped to the selected period.</div>
+    </div>
+    <div class="toolbar">
+      <div class="period-toggle" role="group"
+           hx-target="#eventPerformance" hx-swap="outerHTML">
+        <a href="/dashboard?period=month"   hx-get="/dashboard/events?period=month"   class="period-btn {{ 'active' if period == 'month'   else '' }}">This month</a>
+        <a href="/dashboard?period=quarter" hx-get="/dashboard/events?period=quarter" class="period-btn {{ 'active' if period == 'quarter' else '' }}">This quarter</a>
+        <a href="/dashboard?period=year"    hx-get="/dashboard/events?period=year"    class="period-btn {{ 'active' if period == 'year'    else '' }}">This year</a>
+        <a href="/dashboard?period=all"     hx-get="/dashboard/events?period=all"     class="period-btn {{ 'active' if period == 'all'     else '' }}">All time</a>
+      </div>
+      <input id="eventSearch" type="search" placeholder="Search events..."
+             class="form-control form-control-sm" style="width: min(220px, 100%);"
+             oninput="filterEvents(this.value)">
+      <a href="/events" class="btn btn-sm btn-outline-dark icon-btn"><i class="bi bi-arrow-right"></i>View all</a>
+    </div>
+  </div>
+  {% if recent_events %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 events-summary-table" id="eventsTable">
+        <thead>
+          <tr>
+            <th class="ps-4">Event</th>
+            <th>Date</th>
+            <th class="text-end">Value</th>
+            <th class="text-end">Received</th>
+            <th class="text-end">Pending</th>
+            <th class="text-end">Expenses</th>
+            <th class="text-end">Profit</th>
+            <th class="text-end pe-4">Margin</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for r in recent_events %}
+          <tr class="event-row">
+            <td class="ps-4">
+              <a href="/events/{{ r.event.id }}" class="event-link">{{ r.event.name }}</a>
+              {% if r.event.client_name %}<div class="client-name">{{ r.event.client_name }}</div>{% endif %}
+            </td>
+            <td class="text-muted small">{{ r.event.event_date or '-' }}</td>
+            <td class="text-end money fw-semibold">{{ r.event.quoted_amount|money }}</td>
+            <td class="text-end money">{{ r.income|money }}</td>
+            <td class="text-end money">
+              {% if r.pending_from_client > 0 %}
+                <span class="pending-badge">{{ r.pending_from_client|money }}</span>
+              {% else %}
+                <span class="status-pill status-paid">Paid</span>
+              {% endif %}
+            </td>
+            <td class="text-end money text-danger">{{ r.expense|money }}</td>
+            {% if r.event.status.value == 'booked' %}
+            <td class="text-end text-muted">—</td>
+            <td class="text-end pe-4 text-muted">—</td>
+            {% else %}
+            <td class="text-end money fw-bold {{ 'text-success' if r.profit >= 0 else 'text-danger' }}">{{ r.profit|money }}</td>
+            <td class="text-end pe-4">
+              <span class="profit-pct-badge {{ 'pct-positive' if r.profit_pct >= 20 else ('pct-ok' if r.profit_pct >= 0 else 'pct-negative') }}">
+                {{ r.profit_pct|pct }}
+              </span>
+            </td>
+            {% endif %}
+          </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="totals-row" id="totalsRow">
+            <td class="ps-4 fw-bold" colspan="2">Totals</td>
+            <td class="text-end money fw-bold">{{ recent_events|sum(attribute='event.quoted_amount')|money }}</td>
+            <td class="text-end money fw-bold">{{ recent_events|sum(attribute='income')|money }}</td>
+            <td class="text-end money fw-bold">
+              {% set total_pending = recent_events|sum(attribute='pending_from_client') %}
+              {% if total_pending > 0 %}{{ total_pending|money }}{% else %}-{% endif %}
+            </td>
+            <td class="text-end money fw-bold text-danger">{{ recent_events|sum(attribute='expense')|money }}</td>
+            <td class="text-end money fw-bold {{ 'text-success' if recent_events|sum(attribute='profit') >= 0 else 'text-danger' }}">
+              {{ recent_events|sum(attribute='profit')|money }}
+            </td>
+            <td class="pe-4"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div id="noResults" class="empty-state d-none">No events match your search.</div>
+  {% else %}
+    <div class="empty-state">
+      {% if period == 'all' %}
+        No events yet. <a href="/events/new">Create your first event</a>.
+      {% else %}
+        No events in this period.
+        <a href="/dashboard?period=all" hx-get="/dashboard/events?period=all" hx-target="#eventPerformance" hx-swap="outerHTML">View all</a>
+        or <a href="/events/new">add one</a>.
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+</div>

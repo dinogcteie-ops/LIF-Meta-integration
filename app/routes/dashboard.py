@@ -141,6 +141,20 @@ def dashboard_lead_widgets(request: Request,
     return templates.TemplateResponse(request, "dashboard/_lead_widgets.html", ctx)
 
 
+@router.get("/dashboard/events")
+def dashboard_events(request: Request, period: str = "quarter",
+                     db: SheetDB = Depends(get_db)):
+    """HTMX partial — the event-performance table for a period, swapped in place
+    so changing the period doesn't reload the whole dashboard."""
+    today = date.today()
+    if period not in ("month", "quarter", "year", "all"):
+        period = "quarter"
+    filtered = _range_filter(event_profits(db), period, today)
+    filtered.sort(key=lambda r: (r.event.event_date or date.min), reverse=True)
+    return templates.TemplateResponse(request, "dashboard/_event_performance.html",
+                                      {"recent_events": filtered, "period": period})
+
+
 def _cached_db(db: SheetDB = Depends(get_db)):
     """Enable the per-request read cache for the duration of this request only.
 

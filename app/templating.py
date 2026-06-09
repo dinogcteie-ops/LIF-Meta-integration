@@ -1,9 +1,18 @@
+import os
+import time
+
 from fastapi.templating import Jinja2Templates
 
 from app.config import BASE_DIR, get_settings
 
 settings = get_settings()
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+# Cache-busting tag for our own CSS/JS. Changes per deploy (Render sets
+# RENDER_GIT_COMMIT), so browsers fetch fresh assets after each release instead
+# of serving stale cached files. Falls back to process start time locally.
+ASSET_VERSION = (os.environ.get("RENDER_GIT_COMMIT") or "")[:8] or str(int(time.time()))
+templates.env.globals["asset_version"] = ASSET_VERSION
 
 
 def _indian_format(n: int) -> str:

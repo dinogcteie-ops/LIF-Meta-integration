@@ -26,15 +26,24 @@
 <div class="alerts-banner mb-4">
   <div class="alerts-banner-header">
     <i class="bi bi-bell-fill"></i> Attention
+    <span class="alerts-count">{{ alerts | length }}</span>
+    <span class="alerts-count-label">item{{ 's' if alerts | length != 1 else '' }} need action</span>
   </div>
   <div class="alerts-banner-body">
-    {% for a in alerts %}
+    {% for a in alerts[:3] %}
       <a href="{{ a.link }}" class="alert-item alert-{{ a.severity }}">
         <i class="bi bi-{{ a.icon }}"></i>
         <span>{{ a.message }}</span>
         <i class="bi bi-chevron-right alert-arrow"></i>
       </a>
     {% endfor %}
+    {% if alerts | length > 3 %}
+      <a href="/receivables" class="alert-item alert-more">
+        <i class="bi bi-three-dots"></i>
+        <span><strong>+{{ alerts | length - 3 }} more</strong> need attention — review Receivables &amp; Payables</span>
+        <i class="bi bi-chevron-right alert-arrow"></i>
+      </a>
+    {% endif %}
   </div>
 </div>
 {% endif %}

@@ -463,7 +463,7 @@ def cash_flow_alerts(db: SheetDB, today: date | None = None,
       - Clients overdue 30+ days
       - Payables overdue 30+ days
       - Booked events within 14 days that have no advance recorded
-    Returns up to 3 most urgent items.
+    Returns all alerts, most urgent first (the banner caps the display).
     """
     today = today or date.today()
     alerts: list[CashFlowAlert] = []
@@ -525,10 +525,11 @@ def cash_flow_alerts(db: SheetDB, today: date | None = None,
         # Budgets are advisory; never block the alerts banner on a budget error
         pass
 
-    # Order: critical → warning → info, then up to 3
+    # Order: critical → warning → info. Returns ALL alerts; the dashboard banner
+    # shows the count and the first few with a "+N more" indicator.
     severity_order = {"critical": 0, "warning": 1, "info": 2}
     alerts.sort(key=lambda a: severity_order.get(a.severity, 99))
-    return alerts[:3]
+    return alerts
 
 
 # ─── Phase 2: Directory analytics ───────────────────────────────────────────

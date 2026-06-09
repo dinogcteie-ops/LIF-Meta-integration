@@ -1311,6 +1311,32 @@ a:hover {
   align-items: center;
   gap: .4rem;
 }
+.alerts-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 .35rem;
+  border-radius: 99px;
+  background: #b4451d;
+  color: #fff;
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+.alerts-count-label {
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: .02em;
+  color: #8a4f0e;
+}
+.alert-item.alert-more {
+  color: #8a4f0e;
+  font-size: .85rem;
+  font-weight: 600;
+  background: rgba(201, 111, 26, .05);
+}
 .alerts-banner-body {
   display: flex;
   flex-direction: column;

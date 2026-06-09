@@ -1,26 +1,23 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}Dashboard{% endblock %}
 {% block content %}
 <div id="dashboardCapture">
-<header class="page-header">
-  <div>
-    <div class="page-kicker">Life in Frame</div>
-    <h1 class="page-title">Finance cockpit</h1>
-    <p class="page-subtitle">A clear view of studio balance, client collections, vendor payables, and event profitability.</p>
-  </div>
-  <div class="toolbar" data-share-exclude>
-    <button type="button" class="btn btn-outline-dark icon-btn"
-            onclick="shareAsImage('dashboardCapture','finance-dashboard')">
-      <i class="bi bi-share"></i>Share dashboard
-    </button>
-    <button type="button" class="btn btn-outline-dark icon-btn"
-            onclick="downloadAsImage('dashboardCapture','finance-dashboard')">
-      <i class="bi bi-download"></i>Download
-    </button>
-    <a href="/events/new" class="btn btn-dark icon-btn"><i class="bi bi-plus-lg"></i>New event</a>
-    <a href="/expenses/new" class="btn btn-outline-dark icon-btn"><i class="bi bi-receipt-cutoff"></i>New expense</a>
-  </div>
-</header>
+{% call ui.page_header("Finance cockpit",
+                       kicker="Life in Frame",
+                       subtitle="A clear view of studio balance, client collections, vendor payables, and event profitability.",
+                       toolbar_attrs='data-share-exclude') %}
+  <button type="button" class="btn btn-outline-dark icon-btn"
+          onclick="shareAsImage('dashboardCapture','finance-dashboard')">
+    <i class="bi bi-share"></i>Share dashboard
+  </button>
+  <button type="button" class="btn btn-outline-dark icon-btn"
+          onclick="downloadAsImage('dashboardCapture','finance-dashboard')">
+    <i class="bi bi-download"></i>Download
+  </button>
+  <a href="/events/new" class="btn btn-dark icon-btn"><i class="bi bi-plus-lg"></i>New event</a>
+  <a href="/expenses/new" class="btn btn-outline-dark icon-btn"><i class="bi bi-receipt-cutoff"></i>New expense</a>
+{% endcall %}
 
 {% if alerts %}
 <div class="alerts-banner mb-4">

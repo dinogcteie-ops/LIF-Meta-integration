@@ -1,0 +1,28 @@
+{# ──────────────────────────────────────────────────────────────────────────
+   Shared UI macros. Import at the top of a template:
+       {% import "_macros.html" as ui %}
+
+   page_header — the standard eyebrow → title → subtitle block plus an optional
+   right-aligned toolbar. Pass actions via {% call %}:
+
+       {% call ui.page_header("Expense Analytics",
+                              kicker="Spending breakdown",
+                              subtitle="Where the money goes.") %}
+         <a href="/expenses/new" class="btn btn-dark icon-btn">New expense</a>
+       {% endcall %}
+
+   Keeping every page on this one component is what makes the typography system
+   actually hold as the product scales to more studios.
+─────────────────────────────────────────────────────────────────────────── #}
+{% macro page_header(title, kicker="", subtitle="", toolbar_attrs="") %}
+<header class="page-header">
+  <div class="page-header-text">
+    {% if kicker %}<div class="page-kicker">{{ kicker }}</div>{% endif %}
+    <h1 class="page-title">{{ title }}</h1>
+    {% if subtitle %}<p class="page-subtitle">{{ subtitle }}</p>{% endif %}
+  </div>
+  {% if caller %}
+  <div class="toolbar"{% if toolbar_attrs %} {{ toolbar_attrs|safe }}{% endif %}>{{ caller() }}</div>
+  {% endif %}
+</header>
+{% endmacro %}

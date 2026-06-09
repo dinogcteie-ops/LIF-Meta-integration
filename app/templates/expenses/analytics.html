@@ -1,17 +1,13 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}Expense Analytics{% endblock %}
 {% block content %}
-<header class="page-header">
-  <div>
-    <div class="page-kicker">Spending breakdown</div>
-    <h1 class="page-title">Expense Analytics</h1>
-    <p class="page-subtitle">Where the money goes — by scope, category, payment method, and trend.</p>
-  </div>
-  <div class="toolbar">
-    <a href="/expenses" class="btn btn-outline-dark icon-btn"><i class="bi bi-list-ul"></i>All expenses</a>
-    <a href="/expenses/new" class="btn btn-dark icon-btn"><i class="bi bi-plus-lg"></i>New expense</a>
-  </div>
-</header>
+{% call ui.page_header("Expense Analytics",
+                       kicker="Spending breakdown",
+                       subtitle="Where the money goes — by scope, category, payment method, and trend.") %}
+  <a href="/expenses" class="btn btn-outline-dark icon-btn"><i class="bi bi-list-ul"></i>All expenses</a>
+  <a href="/expenses/new" class="btn btn-dark icon-btn"><i class="bi bi-plus-lg"></i>New expense</a>
+{% endcall %}
 
 <!-- ═══ Summary cards ═══ -->
 <div class="row g-3 mb-4">

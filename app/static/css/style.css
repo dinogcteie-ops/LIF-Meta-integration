@@ -399,9 +399,9 @@ a:hover {
 
 .stat-label {
   color: var(--lif-muted);
-  font-size: .72rem;
-  font-weight: 800;
-  letter-spacing: .08em;
+  font-size: var(--fs-eyebrow, .72rem);
+  font-weight: var(--fw-eyebrow, 600);
+  letter-spacing: var(--tracking-eyebrow, .08em);
   line-height: 1.35;
   text-transform: uppercase;
 }
@@ -409,8 +409,8 @@ a:hover {
 .stat-value {
   color: var(--lif-ink);
   font-family: "Segoe UI", Inter, system-ui, sans-serif;
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: var(--fs-kpi, 1.75rem);
+  font-weight: var(--fw-kpi, 700);
   font-variant-numeric: tabular-nums;
   letter-spacing: -.01em;
   line-height: 1.15;
@@ -2820,6 +2820,22 @@ a:hover {
   --lif-shadow: 0 1px 2px rgba(16,24,40,.06), 0 4px 10px -2px rgba(16,24,40,.06);
   --lif-shadow-soft: 0 1px 2px rgba(16,24,40,.05);
   --topbar-h: 56px;
+
+  /* ── Type scale ───────────────────────────────────────────────────────────
+     One place to tune typography across every page / tenant. The rule for a
+     finance tool: the *money* is the hero (largest + heaviest), the page title
+     is quiet wayfinding, and "bold" is spent sparingly so it still means
+     something. Override these per white-label tenant for a different feel
+     without touching a single template. */
+  --fs-page-title:    1.6rem;   /* in-app header — not a marketing hero */
+  --fw-page-title:    600;      /* was 800; let the numbers carry the weight  */
+  --fs-kpi:           1.75rem;  /* the hero figure — largest thing on screen  */
+  --fw-kpi:           700;
+  --fs-scope-amount:  1.35rem;
+  --fs-section-title: 1.1rem;
+  --fs-eyebrow:       .72rem;
+  --fw-eyebrow:       600;      /* was 800 — uppercase + tracking is already loud */
+  --tracking-eyebrow: .08em;
 }
 
 body {
@@ -2832,8 +2848,8 @@ h1, h2, h3, h4, h5, h6 {
   font-family: "Inter", "Segoe UI", system-ui, sans-serif;
   letter-spacing: -.02em;
 }
-.page-title { font-weight: 800; letter-spacing: -.03em; }
-.page-kicker { font-family: "Inter", sans-serif; font-weight: 700; }
+.page-title { font-size: var(--fs-page-title); font-weight: var(--fw-page-title); letter-spacing: -.02em; }
+.page-kicker { font-family: "Inter", sans-serif; font-size: var(--fs-eyebrow); font-weight: var(--fw-eyebrow); }
 .sidebar-brand-name { font-family: "Inter", sans-serif; font-weight: 800; letter-spacing: -.02em; }
 .sidebar-link { font-size: .84rem; font-weight: 500; }
 .topbar-username { font-family: "Inter", sans-serif; }

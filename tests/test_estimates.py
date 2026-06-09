@@ -1,8 +1,20 @@
 """Estimated (planning-only) expenses must be invisible to all actual-money
 calculations, and only surface when explicitly requested."""
-from datetime import date
+from datetime import date, timedelta
 
-from app.services.reports import event_profit, payables_aging
+from app.services.reports import cash_flow_alerts, event_profit, payables_aging
+
+
+def test_payable_alert_names_category_and_event(db):
+    cat = db.list_categories(active_only=True)[0]
+    ev = db.create_event(name="ZZ Alert Wedding", quoted_amount=50_000, status="active")
+    db.create_expense(date_=date.today() - timedelta(days=40), category_id=cat.id,
+                      scope="event", payment_status="pending", amount=12_345,
+                      paid_amount=0, event_id=ev.id, paid_to="None")  # blank-ish payee
+    msgs = [a.message for a in cash_flow_alerts(db, date.today())]
+    # Names the category + event, not the confusing "None" payee.
+    assert any(f"{cat.name} — ZZ Alert Wedding" in m and "unpaid 40 days" in m for m in msgs), msgs
+    assert not any(m.startswith("None ") for m in msgs)
 
 
 def test_estimate_excluded_from_actuals(db):

@@ -430,12 +430,13 @@ def payables_aging(db: SheetDB, today: date | None = None,
             days_overdue = -1
         bucket = _bucket_for(days_overdue)
         _accumulate(totals, bucket, pending)
+        _payee = (e.paid_to or "").strip()
         rows.append(PayableRow(
             expense=e,
             pending=round(pending, 2),
             days_overdue=days_overdue,
             bucket=bucket,
-            payee_label=(e.paid_to or "Unspecified"),
+            payee_label=(_payee if _payee.lower() not in ("", "none") else "Unspecified"),
         ))
     rows.sort(key=lambda x: -x.days_overdue)
     totals.not_due_amount = round(totals.not_due_amount, 2)
@@ -480,14 +481,31 @@ def cash_flow_alerts(db: SheetDB, today: date | None = None,
                 link=f"/events/{r.event.id}",
             ))
 
-    # 2. Critically overdue payables
+    # 2. Critically overdue payables — describe by category + event (not the payee,
+    #    which is often blank/"None"), so it's clear which event the cost belongs to.
     pay_rows, _ = payables_aging(db, today, grace_days)
-    for p in pay_rows:
-        if p.days_overdue >= overdue_threshold_days:
+    if any(p.days_overdue >= overdue_threshold_days for p in pay_rows):
+        event_names = {e.id: e.name for e in db.list_events()}
+        cat_names = {c.id: c.name for c in db.list_categories()}
+        for p in pay_rows:
+            if p.days_overdue < overdue_threshold_days:
+                continue
+            e = p.expense
+            cat = cat_names.get(e.category_id) or "Expense"
+            ev = event_names.get(e.event_id) if e.event_id else None
+            payee = (e.paid_to or "").strip()
+            if payee.lower() in ("", "none"):
+                payee = ""
+            if ev:
+                label = f"{cat} — {ev}"
+            elif payee:
+                label = f"{cat} · {payee}"
+            else:
+                label = f"{cat} ({e.scope.value})"
             alerts.append(CashFlowAlert(
                 severity="warning",
                 icon="cash-stack",
-                message=f"{p.payee_label} unpaid {p.days_overdue} days ({p.pending:,.0f})",
+                message=f"{label}: unpaid {p.days_overdue} days ({p.pending:,.0f})",
                 link=f"/expenses/{p.expense.id}/edit",
             ))
 

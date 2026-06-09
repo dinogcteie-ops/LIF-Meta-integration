@@ -28,11 +28,18 @@ async function _capturePng(elementId) {
   }
 }
 
+function _timestamp() {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_`
+       + `${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}`;
+}
+
 function _downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = filename + '.png';
+  a.download = `${filename}-${_timestamp()}.png`;   // timestamp suffix → unique each download
   document.body.appendChild(a);
   a.click();
   a.remove();

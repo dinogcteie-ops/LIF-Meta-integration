@@ -521,6 +521,7 @@ a:hover {
   align-items: center;
   display: inline-flex;
   gap: .45rem;
+  white-space: nowrap;   /* keep icon + label on one line (e.g. "All leads") */
 }
 
 .form-control,

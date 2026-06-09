@@ -11,6 +11,22 @@ setup docs live in [README.md](README.md).
 auto-deploys (`render.yaml` → `autoDeploy: true`), building the Docker image and
 swapping in the new version once `/healthz` passes (~2–5 min on free tier).
 
+### Release workflow — branch per change, batch-deploy (READ BEFORE PUSHING)
+
+The owner verifies every change on **localhost** first and ships on a **monthly
+cadence**, not per-change. So:
+
+- **Every new piece of work gets its own branch** (`feat/...`). Implement, run tests,
+  and let the owner verify locally. **Do NOT merge to `main` or push** unless the owner
+  explicitly says "deploy" / "ship now".
+- Because `git push origin main` *is* a production deploy (Render auto-deploys), pushing
+  `main` is the single irreversible action — treat it as the release gate.
+- At the agreed release time (end of month), branches fast-forward/merge into `main`
+  and push once as a batch.
+- Keep the feature list in [FEATURES.md](FEATURES.md) current: when you add a feature,
+  add a row with status `On branch (pending deploy)`; flip it to `Live` after the
+  batch ships.
+
 - **Public URL:** https://lifcrm.netlify.app — Netlify is *only* a domain/HTTPS/CDN
   proxy. It runs no Python; it forwards every request to Render (`netlify.toml`
   redirect → `https://lif-crm.onrender.com`). Changing app behavior never touches
@@ -70,10 +86,12 @@ swapping in the new version once `/healthz` passes (~2–5 min on free tier).
   templates use Bootstrap + the existing `lif-card` / `funnel-card` / `cat-dot`
   component classes.
 - **Git:** work on a branch, never commit straight to `main` unless asked. Deploys go
-  out by merging to `main` + pushing — so only push `main` when you intend to ship.
-  Commit messages end with the `Co-Authored-By: Claude …` trailer. Pass multi-line
-  messages via a file (`git commit -F`) — `@'...'@` here-strings are PowerShell-only and
-  break under the Bash tool.
+  out by merging to `main` + pushing — so only push `main` when you intend to ship, and
+  only on the owner's go-ahead (see **Release workflow** above; default is batch-deploy
+  at end of month after local verification). Commit messages end with the
+  `Co-Authored-By: Claude …` trailer. Pass multi-line messages via a file
+  (`git commit -F`) — `@'...'@` here-strings are PowerShell-only and break under the Bash
+  tool.
 
 ## One-time / maintenance scripts
 
@@ -92,3 +110,21 @@ status funnel, source conversion, standardized **lost-reason** tracking + a "Why
 lose leads" dashboard breakdown), Payees/Expenses with scopes (event/company/personal)
 and budgets, Receivables/Payables aging, Reports, a client Portal, and **Meta Ads**
 integration (lead capture via `POST /webhooks/meta/leads` + campaign metrics at `/meta`).
+
+**The authoritative, up-to-date feature list with ship status lives in
+[FEATURES.md](FEATURES.md)** — keep it current as features are added/shipped.
+
+## Background jobs (cron) & email
+
+- Token-gated job endpoints live in `app/routes/jobs.py`, gated like `/meta/refresh`
+  (logged-in user **or** `?token=` == `META_VERIFY_TOKEN`); `/jobs/` is allow-listed in
+  `app/auth.py`. Driven by Netlify scheduled functions (`netlify/functions/*.mjs`,
+  schedules in `netlify.toml`).
+  - `POST /jobs/followup-reminders` — daily Gmail digest of New/Quoted leads due for
+    follow-up today (`app/services/reminders.py` + `email.py`).
+  - `POST /jobs/import-leads` (`?dry_run=1`) — pulls new rows from the inbound Google
+    Sheet into leads (`app/services/lead_intake.py`); dedup via a row-count cursor in
+    settings.
+- Relevant env vars (set on Render): `SMTP_USER`, `SMTP_PASSWORD` (Gmail app password),
+  `SMTP_FROM`, `PUBLIC_BASE_URL`, `LEADS_INTAKE_SHEET_ID`, `LEADS_INTAKE_TAB`. Recipients
+  + on/off toggle are editable in the Settings page (DB settings).

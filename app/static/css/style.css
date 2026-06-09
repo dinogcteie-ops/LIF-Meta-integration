@@ -988,6 +988,7 @@ a:hover {
   background: var(--lif-surface);
   border-right: 1px solid var(--lif-border);
   min-height: 88px;
+  min-width: 0;            /* keep all 7 columns equal — stop long event titles from widening a column */
   padding: .35rem .4rem;
   vertical-align: top;
 }

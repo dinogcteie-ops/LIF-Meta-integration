@@ -7,6 +7,7 @@ converts to/from domain dataclasses at the boundary.
 """
 from __future__ import annotations
 
+import functools
 import logging
 from contextlib import contextmanager
 from datetime import date, datetime
@@ -121,8 +122,36 @@ def _metric(r: MetaMetricRow) -> MetaMetric:
 
 # ─── Database ────────────────────────────────────────────────────────────────
 
+def _request_cached(fn):
+    """Memoize a read method for the duration of a request, when caching is enabled.
+
+    Keyed on (method name, args, kwargs). Inert unless ``enable_cache()`` was called
+    (so normal mutating flows are never cached). Used to collapse the dashboard's many
+    repeated table reads into one round-trip each.
+    """
+    @functools.wraps(fn)
+    def wrapper(self, *args, **kwargs):
+        cache = getattr(self, "_cache", None)
+        if cache is None:
+            return fn(self, *args, **kwargs)
+        key = (fn.__name__, args, tuple(sorted(kwargs.items())))
+        if key not in cache:
+            cache[key] = fn(self, *args, **kwargs)
+        return cache[key]
+    return wrapper
+
+
 class Database:
     """Postgres/SQLite-backed implementation of the LIF data layer."""
+
+    _cache: "dict | None" = None   # per-request read cache; None = disabled
+
+    def enable_cache(self) -> None:
+        """Start caching read methods for this request (call disable_cache() after)."""
+        self._cache = {}
+
+    def disable_cache(self) -> None:
+        self._cache = None
 
     @contextmanager
     def _s(self) -> Iterator:
@@ -143,6 +172,7 @@ class Database:
 
     # ── Categories ──────────────────────────────────────────────────────────
 
+    @_request_cached
     def list_categories(self, active_only: bool = False) -> list[ExpenseCategory]:
         with self._s() as s:
             rows = s.scalars(select(CategoryRow)).all()
@@ -196,6 +226,7 @@ class Database:
 
     # ── Events ────────────────────────────────────────────────────────────────
 
+    @_request_cached
     def list_events(self) -> list[Event]:
         with self._s() as s:
             rows = s.scalars(select(EventRow).order_by(EventRow.id)).all()
@@ -301,6 +332,7 @@ class Database:
 
     # ── Clients ─────────────────────────────────────────────────────────────
 
+    @_request_cached
     def list_clients(self) -> list[Client]:
         with self._s() as s:
             return [_client(r) for r in s.scalars(select(ClientRow).order_by(ClientRow.id)).all()]
@@ -342,6 +374,7 @@ class Database:
 
     # ── Payments ──────────────────────────────────────────────────────────────
 
+    @_request_cached
     def list_payments(self, event_id: Optional[int] = None) -> list[EventPayment]:
         with self._s() as s:
             stmt = select(PaymentRow).order_by(PaymentRow.id)
@@ -365,6 +398,7 @@ class Database:
 
     # ── Expenses ──────────────────────────────────────────────────────────────
 
+    @_request_cached
     def list_expenses(self, event_id: Optional[int] = None, category_id: Optional[int] = None,
                       scope: Optional[str] = None, status: Optional[str] = None,
                       date_from: Optional[date] = None, date_to: Optional[date] = None) -> list[Expense]:
@@ -487,6 +521,7 @@ class Database:
 
     # ── Leads ─────────────────────────────────────────────────────────────────
 
+    @_request_cached
     def list_leads(self, status: Optional[str] = None) -> list[Lead]:
         with self._s() as s:
             stmt = select(LeadRow)
@@ -583,6 +618,7 @@ class Database:
             exp.category = cats.get(exp.category_id)
         return event
 
+    @_request_cached
     def list_events_enriched(self) -> list[Event]:
         events = self.list_events()
         all_pays = self.list_payments()

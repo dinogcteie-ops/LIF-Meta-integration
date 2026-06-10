@@ -14,6 +14,17 @@ class Settings(BaseSettings):
     # Mark the session cookie Secure (HTTPS-only). True in production (set
     # COOKIE_SECURE=true on Render); default False so localhost login still works.
     cookie_secure: bool = False
+
+    # --- Google sign-in (OAuth 2.0; free) ---
+    # Create a Web OAuth client in Google Cloud Console and register BOTH
+    # redirect URIs:  https://lifcrm.netlify.app/auth/google/callback  (prod)
+    # and             http://localhost:8000/auth/google/callback        (dev).
+    # Leave blank to hide the Google button (password login always works).
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    # Public base for the redirect URI in prod (behind the Netlify proxy the
+    # request's own host would be the Render hostname). Blank = use request URL.
+    google_redirect_base: str = ""
     # Local SQLite by default; Supabase Postgres in production. Use the pooled
     # connection string (…pooler.supabase.com:6543) for the running app.
     database_url: str = "sqlite:///./lif.db"

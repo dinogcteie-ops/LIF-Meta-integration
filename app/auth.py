@@ -11,7 +11,8 @@ settings = get_settings()
 _PUBLIC_PATHS = {"/login", "/logout", "/healthz", "/inquiry", "/meta/refresh"}
 # Token-gated cron endpoints reach their own auth check (token or logged-in user),
 # so they must bypass the login redirect — same treatment as /meta/refresh.
-_PUBLIC_PREFIXES = ("/static/", "/portal/", "/webhooks/", "/jobs/")
+# /auth/ covers the Google OAuth start + callback (pre-login by definition).
+_PUBLIC_PREFIXES = ("/static/", "/portal/", "/webhooks/", "/jobs/", "/auth/")
 
 def verify_password(plain: str) -> bool:
     """Check the supplied password.

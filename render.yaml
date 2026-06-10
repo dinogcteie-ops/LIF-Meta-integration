@@ -16,6 +16,15 @@ services:
       # Session cookie is HTTPS-only in production (localhost dev leaves it unset)
       - key: COOKIE_SECURE
         value: "true"
+      # Google sign-in (OAuth). Set the client id/secret in the dashboard after
+      # creating a Web OAuth client in Google Cloud Console with redirect URI
+      # https://lifcrm.netlify.app/auth/google/callback
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_BASE
+        value: https://lifcrm.netlify.app
       - key: CURRENCY
         value: INR
       # Supabase Postgres — paste the *pooled* connection string

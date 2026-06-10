@@ -691,6 +691,12 @@ class Database:
         "followup_enabled":      "on",   # "on"/"off"
         # Google Sheet lead intake high-water mark (newest imported Timestamp)
         "leads_intake_cursor":   "",
+        # RBAC: comma-separated emails per role for Google sign-in (app/rbac.py).
+        # Sign-in is invitation-only — an email in none of these lists is rejected.
+        "role_owners":           "dinogcteie@gmail.com, lifeinframe.in@gmail.com",
+        "role_managers":         "",
+        "role_marketing":        "",
+        "role_guests":           "",
     }
 
     def get_settings_dict(self) -> dict[str, str]:
@@ -742,45 +748,9 @@ class Database:
 
     # ── Recurring expenses ────────────────────────────────────────────────────
 
-    def generate_recurring_expenses(self, target_year: int,
-                                    target_month: int) -> list[Expense]:
-        from calendar import monthrange
-        templates_list = [e for e in self.list_expenses() if e.is_recurring]
-        if not templates_list:
-            return []
-        existing = [
-            e for e in self.list_expenses()
-            if not e.is_recurring
-            and e.date.year == target_year
-            and e.date.month == target_month
-        ]
-        _, month_days = monthrange(target_year, target_month)
-        created: list[Expense] = []
-        for tmpl in templates_list:
-            day = min(tmpl.recurring_day or 1, month_days)
-            target_date = date(target_year, target_month, day)
-            if any(
-                e.category_id == tmpl.category_id
-                and e.scope == tmpl.scope
-                and e.event_id == tmpl.event_id
-                and e.date == target_date
-                for e in existing
-            ):
-                continue
-            new_exp = self.create_expense(
-                date_=target_date,
-                category_id=tmpl.category_id,
-                scope=tmpl.scope.value,
-                payment_status="pending",
-                amount=tmpl.amount,
-                event_id=tmpl.event_id,
-                paid_to=tmpl.paid_to,
-                notes=(f"[Auto-generated] {tmpl.notes or ''}").strip(),
-                payee_id=tmpl.payee_id,
-                is_recurring=False,
-            )
-            created.append(new_exp)
-        return created
+    # NOTE: recurring-expense posting lives in app/services/recurring.py — one
+    # shared core for both the daily cron job and the Settings button, so the
+    # two paths can never double-post.
 
     # ── Meta Ads metrics ──────────────────────────────────────────────────────
 

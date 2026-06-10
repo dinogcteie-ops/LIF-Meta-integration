@@ -94,3 +94,33 @@ def require(perm: str):
         if not can(request, perm):
             raise HTTPException(status_code=403, detail=f"Requires {perm}")
     return _dep
+
+
+# ─── Email → role mapping (Google sign-in) ──────────────────────────────────
+
+# Settings keys holding comma-separated email lists, checked in this order so
+# a mis-listed address resolves to its MOST privileged assignment.
+_ROLE_SETTING_KEYS: list[tuple[str, Role]] = [
+    ("role_owners",    Role.owner),
+    ("role_managers",  Role.manager),
+    ("role_marketing", Role.marketing),
+    ("role_guests",    Role.guest),
+]
+
+
+def role_for_email(email: str | None, settings_dict: dict) -> Role | None:
+    """Resolve a Google-account email to its assigned role.
+
+    Case-insensitive. Returns None when the address appears in no list — the
+    caller must reject the sign-in (access is invitation-only by design).
+    """
+    if not email:
+        return None
+    needle = email.strip().lower()
+    if not needle:
+        return None
+    for key, role in _ROLE_SETTING_KEYS:
+        emails = {e.strip().lower() for e in (settings_dict.get(key) or "").split(",")}
+        if needle in emails:
+            return role
+    return None

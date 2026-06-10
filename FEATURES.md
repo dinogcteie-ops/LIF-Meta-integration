@@ -20,7 +20,8 @@ _Last updated: 2026-06-10 (latency cache + dashboard breakdowns + directory back
 | Password-gated app + sessions | ✅ | `app/auth.py`; `/login`, `APP_PASSWORD` |
 | **Login hardening** — per-IP lockout after 5 failures, HTTPS-only session cookie in prod (`COOKIE_SECURE`), `APP_PASSWORD_HASH` now honoured | 🔄 | `app/routes/auth.py`, `app/auth.py`, `render.yaml` |
 | **Inquiry spam protection** — honeypot field + 5/hour/IP cap, silent drop | 🔄 | `app/routes/portal.py`, `portal/inquiry.html` |
-| **RBAC scaffold** — roles (owner/manager/marketing/guest) + permission checks (`can`/`require`); password login = owner; ready for Google-OAuth swap | 🔄 | `app/rbac.py`; exemplar gating on receivables reminder action |
+| **RBAC scaffold** — roles (owner/manager/marketing/guest) + permission checks (`can`/`require`); password login = owner | 🔄 | `app/rbac.py`; exemplar gating on receivables reminder action |
+| **Google sign-in** — OAuth code flow, invitation-only (email must be on a role list); owners seeded: dinogcteie@gmail.com, lifeinframe.in@gmail.com; role lists editable in Settings → Access & roles | ⚙️🔄 | `/auth/google*` in `app/routes/auth.py`; needs `GOOGLE_CLIENT_ID`/`SECRET` on Render + OAuth client in Google Cloud Console |
 | **WhatsApp payment reminders** — free `wa.me` deep links with prefilled balance message per receivable (client phone from linked Client record) | 🔄 | `app/services/whatsapp.py`, receivables page |
 | Finance dashboard (KPIs, sparklines, cash-flow alerts, drill-down modals) | ✅ | `app/routes/dashboard.py`, `app/templates/dashboard.html` |
 | Reports & analytics (monthly/quarterly history, projections, YoY, seasonal) | ✅ | `app/services/reports.py`, `analytics.py` |
@@ -95,8 +96,7 @@ _Last updated: 2026-06-10 (latency cache + dashboard breakdowns + directory back
 
 | Idea | Status | Notes |
 |---|---|---|
-| **Google OAuth sign-in + role assignment UI** (email → role mapping; e.g. marketing = no finance view, guest = read-only) | 📝 | auth swap only — authorization layer already built in `app/rbac.py` |
-| Route-level RBAC enforcement across all routers (gate finance pages for marketing role) | 📝 | apply `require()`/nav-hiding once multiple real users exist |
+| Route-level RBAC enforcement across all routers (gate finance pages for marketing role) | 📝 | apply `require()`/nav-hiding now that Google sign-in can mint non-owner sessions |
 | UPI deep links + QR on receivables & portal (free; Razorpay later only if needed) | 📝 | B1 follow-up to WhatsApp links |
 | Loss breakdown on the Reports page with date filter | 📝 | extend `filter_lost_leads` usage |
 | Record an explicit `lost_at` date when a lead is marked lost | 📝 | precise loss-timing vs the current enquiry-date proxy |

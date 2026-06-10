@@ -5,6 +5,8 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 
 from app.database import get_db, SheetDB
+from app.rbac import require
+from app.services.recurring import generate_for_month
 from app.templating import refresh_template_globals, templates
 
 router = APIRouter()
@@ -55,6 +57,44 @@ def save_settings(
     return RedirectResponse(url="/settings", status_code=303)
 
 
+# ── Access & roles (Google sign-in email → role lists) ───────────────────────
+
+def _clean_email_list(raw: str) -> str:
+    """Normalize a comma-separated email list: trim, lowercase, dedupe, drop junk."""
+    seen, out = set(), []
+    for part in (raw or "").split(","):
+        e = part.strip().lower()
+        if e and "@" in e and e not in seen:
+            seen.add(e)
+            out.append(e)
+    return ", ".join(out)
+
+
+@router.post("/settings/roles", dependencies=[Depends(require("admin"))])
+def save_roles(
+    request: Request,
+    role_owners:    str = Form(""),
+    role_managers:  str = Form(""),
+    role_marketing: str = Form(""),
+    role_guests:    str = Form(""),
+    db: SheetDB = Depends(get_db),
+):
+    owners = _clean_email_list(role_owners)
+    if not owners:
+        # Never allow an empty owners list — that would lock everyone out of
+        # Google sign-in administration the moment password login is retired.
+        request.session["flash"] = "Owners list cannot be empty — changes not saved."
+        return RedirectResponse(url="/settings", status_code=303)
+    db.set_settings({
+        "role_owners":    owners,
+        "role_managers":  _clean_email_list(role_managers),
+        "role_marketing": _clean_email_list(role_marketing),
+        "role_guests":    _clean_email_list(role_guests),
+    })
+    request.session["flash"] = "Access lists saved."
+    return RedirectResponse(url="/settings", status_code=303)
+
+
 # ── Notification / follow-up reminder settings ────────────────────────────────
 
 @router.post("/settings/notifications")
@@ -84,8 +124,8 @@ def generate_recurring(
     today = date_cls.today()
     yr = int(year)  if year.strip()  else today.year
     mo = int(month) if month.strip() else today.month
-    created = db.generate_recurring_expenses(yr, mo)
-    n = len(created)
+    summary = generate_for_month(db, yr, mo)
+    n = summary["posted"]
     if n:
         request.session["flash"] = (
             f"Generated {n} recurring expense{'s' if n != 1 else ''} "

@@ -115,6 +115,59 @@
   </div>
 </section>
 
+<!-- ── Access & roles (Google sign-in) ────────────────────────── -->
+<section class="settings-section mt-4">
+  <div class="settings-section-header">
+    <h5><i class="bi bi-person-badge me-2"></i>Access &amp; roles</h5>
+    <p class="text-muted small mb-0">
+      Who can sign in with Google, and what they can do. Sign-in is invitation-only:
+      a Google account on none of these lists is rejected. Owners have full access;
+      managers everything except admin; marketing sees leads &amp; ads but no finance;
+      guests are view-only.
+    </p>
+  </div>
+  <form method="post" action="/settings/roles">
+    <div class="settings-body">
+      <div class="settings-row">
+        <label class="settings-label">
+          Owners
+          <span class="settings-hint">Comma-separated Google emails. Full access incl. settings.</span>
+        </label>
+        <input type="text" name="role_owners" class="form-control settings-input"
+               value="{{ studio.role_owners }}"
+               placeholder="owner@example.com, partner@example.com">
+      </div>
+      <div class="settings-row">
+        <label class="settings-label">
+          Managers
+          <span class="settings-hint">Day-to-day finance + leads, no settings/audit.</span>
+        </label>
+        <input type="text" name="role_managers" class="form-control settings-input"
+               value="{{ studio.role_managers }}">
+      </div>
+      <div class="settings-row">
+        <label class="settings-label">
+          Marketing
+          <span class="settings-hint">Leads, Meta ads, client directory — no finance pages.</span>
+        </label>
+        <input type="text" name="role_marketing" class="form-control settings-input"
+               value="{{ studio.role_marketing }}">
+      </div>
+      <div class="settings-row">
+        <label class="settings-label">
+          Guests
+          <span class="settings-hint">View-only across the app.</span>
+        </label>
+        <input type="text" name="role_guests" class="form-control settings-input"
+               value="{{ studio.role_guests }}">
+      </div>
+    </div>
+    <div class="settings-footer">
+      <button class="btn btn-dark icon-btn"><i class="bi bi-check2"></i>Save access lists</button>
+    </div>
+  </form>
+</section>
+
 <!-- ── Inbound lead capture (Google Sheet) ────────────────────── -->
 <section class="settings-section mt-4">
   <div class="settings-section-header">

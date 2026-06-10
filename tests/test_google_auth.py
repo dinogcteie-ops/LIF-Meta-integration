@@ -42,7 +42,14 @@ def _enable_google(monkeypatch):
     monkeypatch.setattr(s, "google_client_secret", "test-secret")
 
 
-def test_google_start_404_when_unconfigured():
+def _disable_google(monkeypatch):
+    s = auth_routes.get_settings()
+    monkeypatch.setattr(s, "google_client_id", "")
+    monkeypatch.setattr(s, "google_client_secret", "")
+
+
+def test_google_start_404_when_unconfigured(monkeypatch):
+    _disable_google(monkeypatch)
     with TestClient(app, follow_redirects=False) as c:
         assert c.get("/auth/google").status_code == 404
 
@@ -58,6 +65,7 @@ def test_google_start_redirects_with_state(monkeypatch):
 
 
 def test_google_login_button_visibility(monkeypatch):
+    _disable_google(monkeypatch)
     with TestClient(app) as c:
         assert "Continue with Google" not in c.get("/login").text
     _enable_google(monkeypatch)

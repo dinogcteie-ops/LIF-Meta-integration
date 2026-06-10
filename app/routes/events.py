@@ -9,6 +9,7 @@ from fastapi.responses import RedirectResponse
 from app.database import get_db, SheetDB
 from app.enums import EventStatus, EventType, LeadSource
 from app.services.reports import event_profit, event_profits
+from app.rbac import require
 from app.templating import templates
 
 
@@ -117,7 +118,7 @@ INDIAN_CITIES = [
     "Mumbai", "Mysore", "Nagpur", "Pune", "Surat", "Visakhapatnam",
 ]
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require("finance.view"))])
 
 
 @router.get("/events")

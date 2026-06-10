@@ -6,9 +6,10 @@ from fastapi.responses import RedirectResponse, Response
 from app.database import get_db, SheetDB
 from app.services.drive import DriveError, push_workbook_to_drive
 from app.services.excel import build_csv, build_workbook
+from app.rbac import require
 from app.services.sheets import SheetsError, push_to_sheet
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require("finance.view"))])
 
 VALID_CSV_KINDS = {"events", "payments", "expenses", "summary"}
 

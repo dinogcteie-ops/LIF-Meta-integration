@@ -7,9 +7,10 @@ from fastapi.responses import RedirectResponse
 from app.database import get_db, SheetDB
 from app.enums import CategoryScope, PaymentStatus, PaymentType
 from app.services.analytics import expense_analytics as _expense_analytics
+from app.rbac import require
 from app.templating import templates
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require("finance.view"))])
 
 
 @router.get("/expenses")

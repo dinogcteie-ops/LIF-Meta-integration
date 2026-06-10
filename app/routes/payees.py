@@ -4,11 +4,12 @@ from fastapi.responses import RedirectResponse
 
 from app.database import get_db, SheetDB
 from app.services.reports import top_payees
+from app.rbac import require
 from app.templating import templates
 
 PAYEE_TYPES = ["freelancer", "vendor", "other"]
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require("finance.view"))])
 
 
 @router.get("/payees")

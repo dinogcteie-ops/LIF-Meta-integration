@@ -6,9 +6,10 @@ from fastapi.responses import RedirectResponse
 
 from app.database import get_db, SheetDB
 from app.enums import EventType, FollowupStatus, LeadSource, LeadStatus, LostReason
+from app.rbac import require
 from app.templating import templates
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require("leads.view"))])
 
 _STATUSES = list(LeadStatus)
 _PERIODS = [("all", "All time"), ("today", "Today"),

@@ -6,9 +6,10 @@ from fastapi import APIRouter, Depends, Request
 
 from app.database import get_db, SheetDB
 from app.enums import EventStatus
+from app.rbac import require
 from app.templating import templates
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require("finance.view"))])
 
 _ALL_STATUSES = [s.value for s in EventStatus]
 

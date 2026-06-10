@@ -6,9 +6,10 @@ from fastapi.responses import RedirectResponse
 
 from app.database import get_db, SheetDB
 from app.enums import DeliveryStatus, EventStatus
+from app.rbac import require
 from app.templating import templates
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require("finance.view"))])
 
 _DELIVERY_STAGES = list(DeliveryStatus)
 _STAGE_ORDER = [s.value for s in _DELIVERY_STAGES]

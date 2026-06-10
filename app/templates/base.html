@@ -25,9 +25,11 @@
       <img src="/static/logo.avif" alt="LIF" onerror="this.style.display='none'" class="mobile-logo">
       <span class="mobile-brand-name">{{ studio_name }}</span>
     </div>
+    {% if can(request, "finance.edit") or can(request, "leads.edit") %}
     <a href="/quick" class="mobile-quick-btn" title="Quick Entry">
       <i class="bi bi-plus-circle-fill"></i>
     </a>
+    {% endif %}
   </header>
 
   <!-- ── Sidebar overlay (mobile) ──────────────────────────────── -->
@@ -44,34 +46,49 @@
     </div>
 
     <nav class="sidebar-nav">
+      {% if can(request, "finance.view") %}
       <a href="/dashboard"
          class="sidebar-link {% if request.url.path == '/dashboard' %}active{% endif %}">
         <i class="bi bi-speedometer2"></i><span>Dashboard</span>
       </a>
+      {% endif %}
+      {% if can(request, "finance.view") %}
       <a href="/events"
          class="sidebar-link {% if '/events' in request.url.path and '/clients' not in request.url.path %}active{% endif %}">
         <i class="bi bi-camera"></i><span>Events</span>
       </a>
+      {% endif %}
+      {% if can(request, "directory.view") %}
       <a href="/clients"
          class="sidebar-link {% if '/clients' in request.url.path %}active{% endif %}">
         <i class="bi bi-people"></i><span>Clients</span>
       </a>
+      {% endif %}
+      {% if can(request, "leads.view") %}
       <a href="/leads"
          class="sidebar-link {% if '/leads' in request.url.path %}active{% endif %}">
         <i class="bi bi-funnel"></i><span>Leads</span>
       </a>
+      {% endif %}
+      {% if can(request, "leads.view") %}
       <a href="/meta"
          class="sidebar-link {% if '/meta' in request.url.path %}active{% endif %}">
         <i class="bi bi-megaphone"></i><span>Meta Ads</span>
       </a>
+      {% endif %}
+      {% if can(request, "finance.view") %}
       <a href="/payees"
          class="sidebar-link {% if '/payees' in request.url.path %}active{% endif %}">
         <i class="bi bi-person-badge"></i><span>Payees</span>
       </a>
+      {% endif %}
+      {% if can(request, "finance.view") %}
       <a href="/calendar"
          class="sidebar-link {% if '/calendar' in request.url.path %}active{% endif %}">
         <i class="bi bi-calendar3"></i><span>Calendar</span>
       </a>
+      {% endif %}
+      {% if can(request, "finance.view") %}
       <a href="/receivables"
          class="sidebar-link {% if '/receivables' in request.url.path %}active{% endif %}">
         <i class="bi bi-cash-coin"></i><span>Receivables</span>
@@ -79,6 +96,8 @@
           <span class="sidebar-badge" title="Items overdue">{{ sidebar_badges.receivables_overdue }}</span>
         {% endif %}
       </a>
+      {% endif %}
+      {% if can(request, "finance.view") %}
       <a href="/payables"
          class="sidebar-link {% if '/payables' in request.url.path %}active{% endif %}">
         <i class="bi bi-cash-stack"></i><span>Payables</span>
@@ -86,6 +105,8 @@
           <span class="sidebar-badge" title="Items overdue">{{ sidebar_badges.payables_overdue }}</span>
         {% endif %}
       </a>
+      {% endif %}
+      {% if can(request, "finance.view") %}
       <a href="/expenses"
          class="sidebar-link {% if request.url.path == '/expenses' or (request.url.path.startswith('/expenses') and 'analytics' not in request.url.path) %}active{% endif %}">
         <i class="bi bi-receipt"></i><span>Expenses</span>
@@ -106,14 +127,19 @@
          class="sidebar-link {% if '/reports' in request.url.path %}active{% endif %}">
         <i class="bi bi-graph-up-arrow"></i><span>Reports</span>
       </a>
+      {% endif %}
+      {% if can(request, "finance.edit") or can(request, "leads.edit") %}
       <a href="/quick"
          class="sidebar-link {% if '/quick' in request.url.path %}active{% endif %}">
         <i class="bi bi-lightning"></i><span>Quick Entry</span>
       </a>
+      {% endif %}
+      {% if can(request, "admin") %}
       <a href="/settings"
          class="sidebar-link {% if request.url.path in ['/settings', '/audit'] %}active{% endif %}">
         <i class="bi bi-gear"></i><span>Settings</span>
       </a>
+      {% endif %}
     </nav>
 
     <div class="sidebar-footer">
@@ -136,11 +162,17 @@
       </label>
       <div class="topbar-spacer"></div>
       <div class="topbar-actions">
+        {% if can(request, "finance.edit") or can(request, "leads.edit") %}
         <a href="/quick" class="topbar-btn" title="Quick entry"><i class="bi bi-plus-lg"></i></a>
+        {% endif %}
+        {% if can(request, "admin") %}
         <a href="/settings" class="topbar-btn" title="Settings"><i class="bi bi-gear"></i></a>
+        {% endif %}
         <div class="topbar-profile">
-          <span class="topbar-avatar">{{ (studio_name or 'L')[:1]|upper }}</span>
-          <span class="topbar-username d-none d-lg-inline">{{ studio_name }}</span>
+          {% set _user = request.session.get("user", "") if request.session else "" %}
+          {% set _avatar = (_user if "@" in _user else studio_name or "L")[:1]|upper %}
+          <span class="topbar-avatar">{{ _avatar }}</span>
+          <span class="topbar-username d-none d-lg-inline">{{ _user if "@" in _user else studio_name }}</span>
           <form action="/logout" method="post" class="m-0">
             <button type="submit" class="topbar-logout" title="Log out"><i class="bi bi-box-arrow-right"></i></button>
           </form>
@@ -164,6 +196,7 @@
 
 <!-- ── Mobile bottom nav ──────────────────────────────────────── -->
 <nav class="mobile-bottom-nav">
+  {% if can(request, "finance.view") %}
   <a href="/dashboard" class="bottom-nav-item {% if request.url.path == '/dashboard' %}active{% endif %}">
     <i class="bi bi-speedometer2"></i>
     <span>Home</span>
@@ -172,10 +205,23 @@
     <i class="bi bi-camera"></i>
     <span>Events</span>
   </a>
+  {% elif can(request, "leads.view") %}
+  <a href="/leads" class="bottom-nav-item {% if '/leads' in request.url.path %}active{% endif %}">
+    <i class="bi bi-funnel"></i>
+    <span>Leads</span>
+  </a>
+  <a href="/clients" class="bottom-nav-item {% if '/clients' in request.url.path %}active{% endif %}">
+    <i class="bi bi-people"></i>
+    <span>Clients</span>
+  </a>
+  {% endif %}
+  {% if can(request, "finance.edit") or can(request, "leads.edit") %}
   <a href="/quick" class="bottom-nav-item bottom-nav-center {% if '/quick' in request.url.path %}active{% endif %}">
     <i class="bi bi-plus-circle-fill"></i>
     <span>Add</span>
   </a>
+  {% endif %}
+  {% if can(request, "finance.view") %}
   <a href="/expenses" class="bottom-nav-item {% if '/expenses' in request.url.path %}active{% endif %}">
     <i class="bi bi-receipt"></i>
     <span>Expenses</span>
@@ -184,6 +230,12 @@
     <i class="bi bi-graph-up"></i>
     <span>Reports</span>
   </a>
+  {% elif can(request, "leads.view") %}
+  <a href="/meta" class="bottom-nav-item {% if '/meta' in request.url.path %}active{% endif %}">
+    <i class="bi bi-megaphone"></i>
+    <span>Meta Ads</span>
+  </a>
+  {% endif %}
 </nav>
 
 <script src="/static/vendor/bootstrap/bootstrap.bundle.min.js"></script>

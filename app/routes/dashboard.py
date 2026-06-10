@@ -14,9 +14,10 @@ from app.services.reports import (
     filter_leads, filter_lost_leads, lead_funnel, lost_reason_breakdown,
     payables_aging, receivables_aging, source_conversion,
 )
+from app.rbac import require
 from app.templating import templates
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require("finance.view"))])
 
 
 def _range_filter(events, period: str, today: date):

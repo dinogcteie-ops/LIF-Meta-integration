@@ -7,9 +7,10 @@ from app.services.reports import (
     budget_vs_actual, event_profits, expense_breakdown, monthly_history,
     project_next, quarterly_history, top_clients, top_payees,
 )
+from app.rbac import require
 from app.templating import templates
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require("finance.view"))])
 
 
 @router.get("/reports")

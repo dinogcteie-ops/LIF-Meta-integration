@@ -9,7 +9,7 @@ from app.rbac import require
 from app.services.recurring import generate_for_month
 from app.templating import refresh_template_globals, templates
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require("admin"))])
 
 ENTITY_TYPES = ["event", "payment", "expense", "client", "payee"]
 

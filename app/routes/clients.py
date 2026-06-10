@@ -4,9 +4,10 @@ from fastapi.responses import RedirectResponse
 
 from app.database import get_db, SheetDB
 from app.services.reports import event_profits, top_clients
+from app.rbac import require
 from app.templating import templates
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require("directory.view"))])
 
 
 @router.get("/clients")

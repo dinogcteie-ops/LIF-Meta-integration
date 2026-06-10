@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse
 
 from app.database import get_db, SheetDB
+from app.rbac import require
 from app.services import meta as meta_api
 from app.templating import templates
 
@@ -81,7 +82,7 @@ async def receive_webhook(request: Request, db: SheetDB = Depends(get_db)):
 
 # ─── Dashboard ─────────────────────────────────────────────────────────────────
 
-@router.get("/meta")
+@router.get("/meta", dependencies=[Depends(require("leads.view"))])
 def meta_dashboard(request: Request, db: SheetDB = Depends(get_db)):
     metrics = db.list_meta_metrics()
 

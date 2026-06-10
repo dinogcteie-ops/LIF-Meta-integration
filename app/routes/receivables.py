@@ -12,7 +12,7 @@ from app.services.reports import receivables_aging
 from app.services.whatsapp import payment_reminder_text, wa_link
 from app.templating import templates, _format_money
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require("finance.view"))])
 
 
 @router.get("/receivables")

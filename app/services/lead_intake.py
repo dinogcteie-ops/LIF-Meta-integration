@@ -228,10 +228,11 @@ def run_intake(db: SheetDB, dry_run: bool = False) -> dict:
                          for l in existing_leads if l.meta_lead_id}
 
     total_imported = total_skipped = total_rows = 0
-    all_headers: list[str] = []
-    sample: list[dict]     = []
-    tab_summaries: list[dict] = []
-    newly_done: list[str]  = []
+    all_headers: list[str]       = []
+    sample: list[dict]           = []
+    imported_leads: list[dict]   = []
+    tab_summaries: list[dict]    = []
+    newly_done: list[str]        = []
 
     for ws in to_process:
         records = ws.get_all_records()
@@ -244,14 +245,21 @@ def run_intake(db: SheetDB, dry_run: bool = False) -> dict:
                                   dry_run, db)
             if result == "imported":
                 tab_imported += 1
+                lower_map = {str(k).strip().lower(): k for k in row.keys()}
+                raw_phone = _pick(row, lower_map, "contact")
+                raw_svc   = _pick(row, lower_map, "event_type")
+                lead_info = {
+                    "name":      _pick(row, lower_map, "client_name"),
+                    "phone":     re.sub(r"^p:", "", raw_phone).strip() if raw_phone else "",
+                    "city":      _pick(row, lower_map, "city"),
+                    "event_type": _SERVICE_TO_EVENT_TYPE.get(
+                                    raw_svc.lower().replace(" ", "_"), raw_svc),
+                    "campaign":  _pick(row, lower_map, "campaign_name"),
+                    "tab":       ws.title,
+                }
+                imported_leads.append(lead_info)
                 if len(sample) < 5:
-                    lower_map = {str(k).strip().lower(): k for k in row.keys()}
-                    sample.append({
-                        "tab": ws.title,
-                        "name": _pick(row, lower_map, "client_name"),
-                        "phone": _pick(row, lower_map, "contact"),
-                        "city": _pick(row, lower_map, "city"),
-                    })
+                    sample.append(lead_info)
             else:
                 tab_skipped += 1
 
@@ -273,13 +281,14 @@ def run_intake(db: SheetDB, dry_run: bool = False) -> dict:
         db.set_settings({_DONE_KEY: ", ".join(sorted(updated))})
 
     return {
-        "dry_run":       dry_run,
-        "tabs_total":    len(worksheets),
+        "dry_run":        dry_run,
+        "tabs_total":     len(worksheets),
         "tabs_processed": len(to_process),
-        "total_rows":    total_rows,
-        "imported":      total_imported,
-        "skipped":       total_skipped,
-        "headers":       all_headers,
-        "sample":        sample,
-        "tabs":          tab_summaries,
+        "total_rows":     total_rows,
+        "imported":       total_imported,
+        "skipped":        total_skipped,
+        "headers":        all_headers,
+        "sample":         sample,
+        "imported_leads": imported_leads,
+        "tabs":           tab_summaries,
     }

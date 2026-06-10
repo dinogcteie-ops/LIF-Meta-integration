@@ -18,10 +18,28 @@ from app.database import get_db, SheetDB
 from app.services.email import EmailError, email_configured, send_email
 from app.services.lead_intake import IntakeError, run_intake
 from app.services.recurring import post_due_recurring
-from app.services.reminders import build_followup_digest, due_followups
+from app.services.reminders import build_followup_digest, build_new_leads_email, due_followups
 
 log = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def _notify_new_leads(imported_leads: list, db) -> None:
+    """Email owner(s) about newly imported leads. Silent on any failure."""
+    if not email_configured():
+        return
+    studio = db.get_settings_dict()
+    recipients = [e.strip() for e in (studio.get("role_owners") or "").split(",")
+                  if e.strip()]
+    if not recipients:
+        return
+    try:
+        subject, html = build_new_leads_email(
+            imported_leads, get_settings().public_base_url or "https://lifcrm.netlify.app"
+        )
+        send_email(subject, html, recipients)
+    except EmailError as exc:
+        log.warning("New-lead notification failed: %s", exc)
 
 
 def _logged_in(request: Request) -> bool:
@@ -109,6 +127,9 @@ def import_leads_job(request: Request, dry_run: bool = False,
             request.session["flash"] = f"Lead import error: {exc}"
             return RedirectResponse(url="/settings", status_code=303)
         return JSONResponse({"error": str(exc)}, status_code=400)
+
+    if not dry_run and summary["imported"] > 0:
+        _notify_new_leads(summary["imported_leads"], db)
 
     if ui:
         if dry_run:

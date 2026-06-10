@@ -78,6 +78,64 @@ def build_followup_digest(leads: list[Lead], base_url: str,
     return subject, html
 
 
+def build_new_leads_email(leads: list[dict], base_url: str) -> tuple[str, str]:
+    """Return (subject, html) for a new-lead notification.
+
+    ``leads`` is the ``imported_leads`` list from ``run_intake`` — each entry
+    has keys: name, phone, city, event_type, campaign, tab.
+    """
+    from datetime import datetime
+    n = len(leads)
+    subject = f"[LIF CRM] {n} new lead{'s' if n != 1 else ''} from Meta"
+    base = base_url.rstrip("/")
+
+    rows = "".join(
+        f"""
+        <tr>
+          <td style="padding:8px 10px;border-bottom:1px solid #eee;font-weight:600;">
+            {_esc(lead['name']) or '—'}
+          </td>
+          <td style="padding:8px 10px;border-bottom:1px solid #eee;">
+            {_esc(lead['phone']) or '—'}
+          </td>
+          <td style="padding:8px 10px;border-bottom:1px solid #eee;">
+            {_esc(lead['event_type']) or '—'}
+          </td>
+          <td style="padding:8px 10px;border-bottom:1px solid #eee;">
+            {_esc(lead['city']) or '—'}
+          </td>
+          <td style="padding:8px 10px;border-bottom:1px solid #eee;color:#6b7280;font-size:13px;">
+            {_esc(lead['campaign']) or '—'}
+          </td>
+        </tr>"""
+        for lead in leads
+    )
+
+    html = f"""\
+<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#1f2937;max-width:680px;">
+  <h2 style="margin:0 0 4px;">{n} new lead{'s' if n != 1 else ''} from Meta</h2>
+  <p style="margin:0 0 16px;color:#6b7280;">
+    Captured {datetime.now().strftime('%d %b %Y, %I:%M %p')}
+  </p>
+  <table style="border-collapse:collapse;width:100%;font-size:14px;">
+    <thead>
+      <tr style="background:#f9fafb;text-align:left;">
+        <th style="padding:8px 10px;border-bottom:2px solid #e5e7eb;">Name</th>
+        <th style="padding:8px 10px;border-bottom:2px solid #e5e7eb;">Phone</th>
+        <th style="padding:8px 10px;border-bottom:2px solid #e5e7eb;">Looking for</th>
+        <th style="padding:8px 10px;border-bottom:2px solid #e5e7eb;">City</th>
+        <th style="padding:8px 10px;border-bottom:2px solid #e5e7eb;">Campaign</th>
+      </tr>
+    </thead>
+    <tbody>{rows}</tbody>
+  </table>
+  <p style="margin:18px 0 0;font-size:13px;color:#9ca3af;">
+    <a href="{base}/leads" style="color:#2563eb;">Open Leads in CRM →</a>
+  </p>
+</div>"""
+    return subject, html
+
+
 def _esc(value) -> str:
     """Minimal HTML escape for interpolated text."""
     if value is None:

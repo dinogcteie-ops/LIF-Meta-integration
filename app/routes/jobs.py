@@ -113,14 +113,16 @@ def import_leads_job(request: Request, dry_run: bool = False,
     if ui:
         if dry_run:
             request.session["flash"] = (
-                f"Dry run: {summary['new_rows']} new row(s); would import "
-                f"{summary['imported']}, skip {summary['skipped']}. "
+                f"Dry run: {summary['total_rows']} row(s) across "
+                f"{summary['tabs_processed']} tab(s); would import "
+                f"{summary['imported']}, skip {summary['skipped']} (already exist). "
                 f"Headers seen: {', '.join(summary['headers']) or 'none'}."
             )
             return RedirectResponse(url="/settings", status_code=303)
         request.session["flash"] = (
-            f"Imported {summary['imported']} new lead(s) from the sheet "
-            f"({summary['skipped']} skipped)."
+            f"Imported {summary['imported']} new lead(s) from "
+            f"{summary['tabs_processed']} tab(s) "
+            f"({summary['skipped']} skipped — already in CRM)."
         )
         return RedirectResponse(url="/leads", status_code=303)
     return JSONResponse(summary)

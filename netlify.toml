@@ -23,9 +23,9 @@
 [functions."followup-reminders"]
   schedule = "30 3 * * *"
 
-# Daily inbound-lead capture from the Google Sheet — 09:30 IST (04:00 UTC).
+# Daily inbound-lead capture from the Google Sheet — 09:00 IST (03:30 UTC).
 [functions."import-leads"]
-  schedule = "0 4 * * *"
+  schedule = "30 3 * * *"
 
 # Daily recurring-expense posting (rent/salaries/subscriptions) — 08:00 IST (02:30 UTC).
 [functions."recurring-expenses"]

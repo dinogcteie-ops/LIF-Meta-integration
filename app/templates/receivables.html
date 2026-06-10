@@ -94,6 +94,14 @@
           {% endif %}
         </td>
         <td class="pe-4 text-end">
+          {% if wa_links.get(r.event.id) %}
+          <a href="{{ wa_links[r.event.id] }}" target="_blank" rel="noopener"
+             class="btn btn-sm btn-outline-success icon-btn"
+             title="Open WhatsApp with a prefilled payment reminder">
+            <i class="bi bi-whatsapp"></i> WhatsApp
+          </a>
+          {% endif %}
+          {% if can_edit %}
           <button type="button" class="btn btn-sm btn-outline-dark icon-btn"
                   data-bs-toggle="modal" data-bs-target="#reminderModal{{ r.event.id }}">
             <i class="bi bi-bell"></i> Mark reminded
@@ -130,6 +138,7 @@
               </form>
             </div>
           </div>
+          {% endif %}
         </td>
       </tr>
     {% endfor %}

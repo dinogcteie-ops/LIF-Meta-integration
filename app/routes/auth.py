@@ -73,6 +73,9 @@ def login_submit(request: Request, password: str = Form(...)):
         )
     _clear_failures(ip)
     request.session["user"] = "owner"
+    # RBAC: the password login is the owner. The future Google sign-in will set
+    # this same key from an email->role mapping instead (see app/rbac.py).
+    request.session["role"] = "owner"
     return RedirectResponse(url="/dashboard", status_code=303)
 
 

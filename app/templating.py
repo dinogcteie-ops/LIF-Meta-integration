@@ -56,6 +56,10 @@ def _format_pct(value: float | None) -> str:
 templates.env.filters["money"] = _format_money
 templates.env.filters["pct"] = _format_pct
 templates.env.filters["zip"] = zip
+
+# RBAC check, callable from any template: {% if can(request, 'finance.edit') %}
+from app.rbac import can as _can  # noqa: E402  (import here to avoid cycles at module top)
+templates.env.globals["can"] = _can
 # Legacy globals (overwritten by refresh_template_globals at startup)
 templates.env.globals["currency"] = settings.currency
 templates.env.globals["currency_symbol"] = "₹"

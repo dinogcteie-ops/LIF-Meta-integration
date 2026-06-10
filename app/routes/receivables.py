@@ -7,8 +7,10 @@ from fastapi.responses import RedirectResponse
 
 from app.database import get_db, SheetDB
 from app.enums import EventStatus
+from app.rbac import can, require
 from app.services.reports import receivables_aging
-from app.templating import templates
+from app.services.whatsapp import payment_reminder_text, wa_link
+from app.templating import templates, _format_money
 
 router = APIRouter()
 
@@ -49,6 +51,26 @@ def receivables_view(
                              + pay_totals.bucket_31_60_count
                              + pay_totals.bucket_60_plus_count),
     }
+
+    # WhatsApp deep links (free wa.me, no API): one prefilled payment-reminder
+    # link per event whose linked Client record has a phone number.
+    clients_map = {c.id: c for c in db.list_clients()}
+    studio = templates.env.globals.get("studio_name", "Life in Frame")
+    wa_links: dict[int, str] = {}
+    for r in rows:
+        client = clients_map.get(r.event.client_id) if r.event.client_id else None
+        if client is None or not client.phone:
+            continue
+        text = payment_reminder_text(
+            studio_name=studio,
+            client_name=r.event.client_name or client.name,
+            event_name=r.event.name,
+            pending_display=_format_money(r.pending),
+        )
+        link = wa_link(client.phone, text)
+        if link:
+            wa_links[r.event.id] = link
+
     return templates.TemplateResponse(
         request,
         "receivables.html",
@@ -69,11 +91,15 @@ def receivables_view(
             "active_bucket":     bucket,
             "today":             today,
             "sidebar_badges":    sidebar_badges,
+            "wa_links":          wa_links,
+            # RBAC: resolved once here; the template gates edit actions on it.
+            "can_edit":          can(request, "finance.edit"),
         },
     )
 
 
-@router.post("/events/{event_id}/reminders")
+@router.post("/events/{event_id}/reminders",
+             dependencies=[Depends(require("finance.edit"))])
 def log_reminder(
     event_id: int,
     request: Request,

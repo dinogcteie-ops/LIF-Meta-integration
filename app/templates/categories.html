@@ -1,13 +1,10 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}Categories{% endblock %}
 {% block content %}
-<header class="page-header">
-  <div>
-    <div class="page-kicker">Setup</div>
-    <h1 class="page-title">Expense categories</h1>
-    <p class="page-subtitle">Keep your studio cost taxonomy clean and set optional monthly budgets per category.</p>
-  </div>
-</header>
+{{ ui.page_header("Expense categories",
+                  kicker="Setup",
+                  subtitle="Keep your studio cost taxonomy clean and set optional monthly budgets per category.") }}
 
 <div class="card form-card mb-4">
   <div class="card-body">

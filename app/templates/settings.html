@@ -1,13 +1,10 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}Settings{% endblock %}
 {% block content %}
-<header class="page-header">
-  <div>
-    <div class="page-kicker">Administration</div>
-    <h1 class="page-title">Settings</h1>
-    <p class="page-subtitle">Studio branding, finance defaults, and recurring expense management.</p>
-  </div>
-</header>
+{{ ui.page_header("Settings",
+                  kicker="Administration",
+                  subtitle="Studio branding, finance defaults, and recurring expense management.") }}
 
 <div class="settings-grid">
 

@@ -21,7 +21,7 @@ _Last updated: 2026-06-10 (latency cache + dashboard breakdowns + directory back
 | Finance dashboard (KPIs, sparklines, cash-flow alerts, drill-down modals) | ✅ | `app/routes/dashboard.py`, `app/templates/dashboard.html` |
 | Reports & analytics (monthly/quarterly history, projections, YoY, seasonal) | ✅ | `app/services/reports.py`, `analytics.py` |
 | **Per-request read cache** (GET-only middleware) — collapses repeated table reads to one round-trip each, cutting page-to-page latency | 🔄 | `read_cache` in `app/main.py`; ContextVar cache in `db.py` |
-| **Typography system** — tokenized type scale (title/KPI/eyebrow) + shared `page_header` macro; money is the visual hero, restrained titles. Themeable per tenant | 🔄 | tokens in `style.css :root`; `app/templates/_macros.html` |
+| **Typography system** — tokenized type scale (title/KPI/eyebrow) + shared `page_header` macro; money is the visual hero, restrained titles. Themeable per tenant. Rolled out across all 22 standard pages (detail pages keep bespoke headers, same CSS tokens) | 🔄 | tokens in `style.css :root`; `app/templates/_macros.html` |
 | **Pending-from-clients split** by event status (completed / ongoing / booked) on the dashboard card | 🔄 | `BankSummary.pending_*` in `reports.py` |
 | **Seasonal booking pattern** shows both total and average revenue per month | 🔄 | `seasonal_analysis`; `dashboard.html` |
 | Settings (studio branding, finance defaults, recurring expenses) + audit log | ✅ | `app/routes/settings.py` |

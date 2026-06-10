@@ -1,16 +1,12 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}Leads{% endblock %}
 {% block content %}
-<header class="page-header">
-  <div>
-    <div class="page-kicker">Pipeline</div>
-    <h1 class="page-title">Leads</h1>
-    <p class="page-subtitle">Track enquiries from first contact through to booking.</p>
-  </div>
-  <div class="toolbar">
-    <a href="/leads/new" class="btn btn-dark icon-btn"><i class="bi bi-plus-lg"></i>New lead</a>
-  </div>
-</header>
+{% call ui.page_header("Leads",
+                       kicker="Pipeline",
+                       subtitle="Track enquiries from first contact through to booking.") %}
+  <a href="/leads/new" class="btn btn-dark icon-btn"><i class="bi bi-plus-lg"></i>New lead</a>
+{% endcall %}
 
 <!-- Funnel summary cards -->
 {% if funnel.new_count or funnel.quoted_count or funnel.won_count or funnel.lost_count %}

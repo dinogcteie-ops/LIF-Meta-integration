@@ -1,18 +1,14 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}Meta Ads{% endblock %}
 {% block content %}
-<header class="page-header">
-  <div>
-    <div class="page-kicker">Marketing</div>
-    <h1 class="page-title">Meta Ads</h1>
-    <p class="page-subtitle">Facebook &amp; Instagram campaign performance and lead capture.</p>
-  </div>
-  <div class="toolbar">
-    <form action="/meta/refresh" method="post">
-      <button type="submit" class="btn btn-dark icon-btn"><i class="bi bi-arrow-clockwise"></i>Refresh metrics</button>
-    </form>
-  </div>
-</header>
+{% call ui.page_header("Meta Ads",
+                       kicker="Marketing",
+                       subtitle="Facebook & Instagram campaign performance and lead capture.") %}
+  <form action="/meta/refresh" method="post">
+    <button type="submit" class="btn btn-dark icon-btn"><i class="bi bi-arrow-clockwise"></i>Refresh metrics</button>
+  </form>
+{% endcall %}
 
 {% if not configured %}
 <div class="alert alert-info">

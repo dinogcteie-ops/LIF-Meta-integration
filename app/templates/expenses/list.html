@@ -1,16 +1,12 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}Expenses{% endblock %}
 {% block content %}
-<header class="page-header">
-  <div>
-    <div class="page-kicker">Costs</div>
-    <h1 class="page-title">Expenses</h1>
-    <p class="page-subtitle">Filter studio spend across events, company operations, and personal categories.</p>
-  </div>
-  <div class="toolbar">
-    <a href="/expenses/new" class="btn btn-dark icon-btn"><i class="bi bi-plus-lg"></i>New expense</a>
-  </div>
-</header>
+{% call ui.page_header("Expenses",
+                       kicker="Costs",
+                       subtitle="Filter studio spend across events, company operations, and personal categories.") %}
+  <a href="/expenses/new" class="btn btn-dark icon-btn"><i class="bi bi-plus-lg"></i>New expense</a>
+{% endcall %}
 
 <form method="get" action="/expenses" class="filter-panel">
   <div class="row g-2 align-items-center">

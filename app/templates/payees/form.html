@@ -1,13 +1,10 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}{{ 'Edit' if payee else 'New' }} payee{% endblock %}
 {% block content %}
-<header class="page-header">
-  <div>
-    <div class="page-kicker">Payee record</div>
-    <h1 class="page-title">{{ 'Edit payee' if payee else 'New payee' }}</h1>
-    <p class="page-subtitle">Track freelancers, vendors, and other payees to see total studio spend per person.</p>
-  </div>
-</header>
+{{ ui.page_header('Edit payee' if payee else 'New payee',
+                  kicker="Payee record",
+                  subtitle="Track freelancers, vendors, and other payees to see total studio spend per person.") }}
 
 <form method="post"
       action="{{ '/payees/' ~ payee.id if payee else '/payees' }}"

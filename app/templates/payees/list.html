@@ -1,19 +1,15 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}Payees{% endblock %}
 {% block content %}
-<header class="page-header">
-  <div>
-    <div class="page-kicker">Directory</div>
-    <h1 class="page-title">Payees</h1>
-    <p class="page-subtitle">Freelancers, vendors, and other parties the studio pays — with total spend history.</p>
-  </div>
-  <div class="toolbar">
-    <input id="payeeSearch" type="search" placeholder="Search payees..."
-           class="form-control form-control-sm" style="width:min(220px,100%);"
-           oninput="filterPayees(this.value)">
-    <a href="/payees/new" class="btn btn-dark icon-btn"><i class="bi bi-plus-lg"></i>New payee</a>
-  </div>
-</header>
+{% call ui.page_header("Payees",
+                       kicker="Directory",
+                       subtitle="Freelancers, vendors, and other parties the studio pays — with total spend history.") %}
+  <input id="payeeSearch" type="search" placeholder="Search payees..."
+         class="form-control form-control-sm" style="width:min(220px,100%);"
+         oninput="filterPayees(this.value)">
+  <a href="/payees/new" class="btn btn-dark icon-btn"><i class="bi bi-plus-lg"></i>New payee</a>
+{% endcall %}
 
 {% if payees %}
 <div class="card section-card">

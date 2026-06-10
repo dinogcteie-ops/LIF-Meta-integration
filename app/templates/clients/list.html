@@ -1,19 +1,15 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}Clients{% endblock %}
 {% block content %}
-<header class="page-header">
-  <div>
-    <div class="page-kicker">Directory</div>
-    <h1 class="page-title">Clients</h1>
-    <p class="page-subtitle">All client contacts with lifetime booking value and collection summary.</p>
-  </div>
-  <div class="toolbar">
-    <input id="clientSearch" type="search" placeholder="Search clients..."
-           class="form-control form-control-sm" style="width:min(220px,100%);"
-           oninput="filterClients(this.value)">
-    <a href="/clients/new" class="btn btn-dark icon-btn"><i class="bi bi-plus-lg"></i>New client</a>
-  </div>
-</header>
+{% call ui.page_header("Clients",
+                       kicker="Directory",
+                       subtitle="All client contacts with lifetime booking value and collection summary.") %}
+  <input id="clientSearch" type="search" placeholder="Search clients..."
+         class="form-control form-control-sm" style="width:min(220px,100%);"
+         oninput="filterClients(this.value)">
+  <a href="/clients/new" class="btn btn-dark icon-btn"><i class="bi bi-plus-lg"></i>New client</a>
+{% endcall %}
 
 {% if clients %}
 <div class="card section-card">

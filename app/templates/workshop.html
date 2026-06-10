@@ -1,13 +1,10 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}Workshop{% endblock %}
 {% block content %}
-<header class="page-header">
-  <div>
-    <div class="page-kicker">Post-production</div>
-    <h1 class="page-title">Workshop</h1>
-    <p class="page-subtitle">Completed events awaiting editing, review, or delivery.</p>
-  </div>
-</header>
+{{ ui.page_header("Workshop",
+                  kicker="Post-production",
+                  subtitle="Completed events awaiting editing, review, or delivery.") }}
 
 {% if events %}
 <div class="card lif-card">

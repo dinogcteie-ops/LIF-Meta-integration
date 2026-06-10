@@ -1,13 +1,10 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}{{ 'Edit' if client else 'New' }} client{% endblock %}
 {% block content %}
-<header class="page-header">
-  <div>
-    <div class="page-kicker">Client record</div>
-    <h1 class="page-title">{{ 'Edit client' if client else 'New client' }}</h1>
-    <p class="page-subtitle">Store contact details and link events for lifetime value tracking.</p>
-  </div>
-</header>
+{{ ui.page_header('Edit client' if client else 'New client',
+                  kicker="Client record",
+                  subtitle="Store contact details and link events for lifetime value tracking.") }}
 
 <form method="post"
       action="{{ '/clients/' ~ client.id if client else '/clients' }}"

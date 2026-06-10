@@ -1,16 +1,14 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}Audit log{% endblock %}
 {% block content %}
-<header class="page-header">
-  <div>
-    <div class="page-kicker">Administration</div>
-    <h1 class="page-title">Audit log</h1>
-    <p class="page-subtitle">Recent create and delete operations across all entities.</p>
-  </div>
+{% call ui.page_header("Audit log",
+                       kicker="Administration",
+                       subtitle="Recent create and delete operations across all entities.") %}
   <a href="/settings" class="btn btn-sm btn-outline-secondary icon-btn">
     <i class="bi bi-gear"></i>Settings
   </a>
-</header>
+{% endcall %}
 
 <!-- Entity-type filter pills -->
 <div class="filter-bar mb-4">

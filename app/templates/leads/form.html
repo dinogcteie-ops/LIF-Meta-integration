@@ -1,13 +1,10 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}{{ 'Edit' if lead else 'New' }} lead{% endblock %}
 {% block content %}
-<header class="page-header">
-  <div>
-    <div class="page-kicker">Pipeline</div>
-    <h1 class="page-title">{{ 'Edit lead' if lead else 'New lead' }}</h1>
-    <p class="page-subtitle">Track an enquiry before it becomes a booking.</p>
-  </div>
-</header>
+{{ ui.page_header('Edit lead' if lead else 'New lead',
+                  kicker="Pipeline",
+                  subtitle="Track an enquiry before it becomes a booking.") }}
 
 <form method="post" action="{{ '/leads/' ~ lead.id if lead else '/leads' }}"
       class="card form-card">

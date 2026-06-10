@@ -1,16 +1,12 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}Receivables{% endblock %}
 {% block content %}
-<header class="page-header">
-  <div>
-    <div class="page-kicker">Cash flow</div>
-    <h1 class="page-title">Receivables</h1>
-    <p class="page-subtitle">What clients owe, grouped by event status. Click an aging bucket to filter.</p>
-  </div>
-  <div class="toolbar">
-    <a href="/payables" class="btn btn-outline-dark btn-sm icon-btn"><i class="bi bi-cash-stack"></i>Payables</a>
-  </div>
-</header>
+{% call ui.page_header("Receivables",
+                       kicker="Cash flow",
+                       subtitle="What clients owe, grouped by event status. Click an aging bucket to filter.") %}
+  <a href="/payables" class="btn btn-outline-dark btn-sm icon-btn"><i class="bi bi-cash-stack"></i>Payables</a>
+{% endcall %}
 
 <!-- Aging bucket pill cards (covers Booked + Ongoing/Completed only; Cancelled excluded) -->
 <div class="aging-grid mb-4">

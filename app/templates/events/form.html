@@ -1,13 +1,10 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}{{ 'Edit' if event else 'New' }} event{% endblock %}
 {% block content %}
-<header class="page-header">
-  <div>
-    <div class="page-kicker">Event record</div>
-    <h1 class="page-title">{{ 'Edit event' if event else 'New event' }}</h1>
-    <p class="page-subtitle">Capture the client, date, quoted value, and current production status.</p>
-  </div>
-</header>
+{{ ui.page_header('Edit event' if event else 'New event',
+                  kicker="Event record",
+                  subtitle="Capture the client, date, quoted value, and current production status.") }}
 
 <form method="post" action="{{ '/events/' ~ event.id if event else '/events' }}" class="card form-card">
   <div class="card-body">

@@ -1,27 +1,23 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}Reports{% endblock %}
 {% block content %}
-<header class="page-header">
-  <div>
-    <div class="page-kicker">Reporting</div>
-    <h1 class="page-title">Reports</h1>
-    <p class="page-subtitle">Monthly, quarterly, and per-event profitability with local exports.</p>
-  </div>
-  <div class="toolbar">
-    <a href="/export/xlsx" class="btn btn-outline-dark btn-sm icon-btn"><i class="bi bi-download"></i>XLSX</a>
-    <a href="/export/csv?kind=summary" class="btn btn-outline-dark btn-sm icon-btn"><i class="bi bi-download"></i>Summary CSV</a>
-    <a href="/export/csv?kind=events" class="btn btn-outline-dark btn-sm icon-btn"><i class="bi bi-download"></i>Events CSV</a>
-    <a href="/export/csv?kind=expenses" class="btn btn-outline-dark btn-sm icon-btn"><i class="bi bi-download"></i>Expenses CSV</a>
-    <form method="post" action="/export/sheets" class="d-inline"
-          onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').innerHTML='<i class=&quot;bi bi-cloud-arrow-up&quot;></i>Pushing';">
-      <button class="btn btn-gold btn-sm icon-btn"><i class="bi bi-cloud-arrow-up"></i>Push to Google Sheets</button>
-    </form>
-    <form method="post" action="/export/drive" class="d-inline"
-          onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').innerHTML='<i class=&quot;bi bi-folder-symlink&quot;></i>Uploading';">
-      <button class="btn btn-gold btn-sm icon-btn"><i class="bi bi-folder-symlink"></i>Upload Excel to Drive</button>
-    </form>
-  </div>
-</header>
+{% call ui.page_header("Reports",
+                       kicker="Reporting",
+                       subtitle="Monthly, quarterly, and per-event profitability with local exports.") %}
+  <a href="/export/xlsx" class="btn btn-outline-dark btn-sm icon-btn"><i class="bi bi-download"></i>XLSX</a>
+  <a href="/export/csv?kind=summary" class="btn btn-outline-dark btn-sm icon-btn"><i class="bi bi-download"></i>Summary CSV</a>
+  <a href="/export/csv?kind=events" class="btn btn-outline-dark btn-sm icon-btn"><i class="bi bi-download"></i>Events CSV</a>
+  <a href="/export/csv?kind=expenses" class="btn btn-outline-dark btn-sm icon-btn"><i class="bi bi-download"></i>Expenses CSV</a>
+  <form method="post" action="/export/sheets" class="d-inline"
+        onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').innerHTML='<i class=&quot;bi bi-cloud-arrow-up&quot;></i>Pushing';">
+    <button class="btn btn-gold btn-sm icon-btn"><i class="bi bi-cloud-arrow-up"></i>Push to Google Sheets</button>
+  </form>
+  <form method="post" action="/export/drive" class="d-inline"
+        onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').innerHTML='<i class=&quot;bi bi-folder-symlink&quot;></i>Uploading';">
+    <button class="btn btn-gold btn-sm icon-btn"><i class="bi bi-folder-symlink"></i>Upload Excel to Drive</button>
+  </form>
+{% endcall %}
 
 <div class="card mb-4 chart-panel">
   <div class="card-body">

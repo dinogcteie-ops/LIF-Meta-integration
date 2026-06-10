@@ -1,13 +1,10 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 {% block title %}{{ 'Edit' if expense else 'New' }} expense{% endblock %}
 {% block content %}
-<header class="page-header">
-  <div>
-    <div class="page-kicker">Cost record</div>
-    <h1 class="page-title">{{ 'Edit expense' if expense else 'New expense' }}</h1>
-    <p class="page-subtitle">Record production, company, and personal costs with payment status.</p>
-  </div>
-</header>
+{{ ui.page_header('Edit expense' if expense else 'New expense',
+                  kicker="Cost record",
+                  subtitle="Record production, company, and personal costs with payment status.") }}
 
 <form method="post" action="{{ '/expenses/' ~ expense.id if expense else '/expenses' }}"
       class="card form-card" id="expense-form">

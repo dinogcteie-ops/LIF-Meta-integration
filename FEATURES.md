@@ -18,6 +18,8 @@ _Last updated: 2026-06-10 (latency cache + dashboard breakdowns + directory back
 | Feature | Status | Notes |
 |---|---|---|
 | Password-gated app + sessions | ✅ | `app/auth.py`; `/login`, `APP_PASSWORD` |
+| **Login hardening** — per-IP lockout after 5 failures, HTTPS-only session cookie in prod (`COOKIE_SECURE`), `APP_PASSWORD_HASH` now honoured | 🔄 | `app/routes/auth.py`, `app/auth.py`, `render.yaml` |
+| **Inquiry spam protection** — honeypot field + 5/hour/IP cap, silent drop | 🔄 | `app/routes/portal.py`, `portal/inquiry.html` |
 | Finance dashboard (KPIs, sparklines, cash-flow alerts, drill-down modals) | ✅ | `app/routes/dashboard.py`, `app/templates/dashboard.html` |
 | Reports & analytics (monthly/quarterly history, projections, YoY, seasonal) | ✅ | `app/services/reports.py`, `analytics.py` |
 | **Per-request read cache** (GET-only middleware) — collapses repeated table reads to one round-trip each, cutting page-to-page latency | 🔄 | `read_cache` in `app/main.py`; ContextVar cache in `db.py` |
@@ -75,6 +77,7 @@ _Last updated: 2026-06-10 (latency cache + dashboard breakdowns + directory back
 | **Meta Ads** lead capture (`POST /webhooks/meta/leads`) + metrics at `/meta` | ✅ | `app/routes/meta.py` |
 | **Follow-up reminder emails** (daily Gmail digest, Settings-configurable recipients) | ⚙️ | `app/routes/jobs.py`, `reminders.py`, `email.py`; needs `SMTP_*` + recipients |
 | **Google Sheet lead intake** (daily pull → leads, dry-run + cursor dedup) | ⚙️ | `app/services/lead_intake.py`; needs sheet shared with SA + `LEADS_INTAKE_*` |
+| **Recurring expenses auto-post** — daily cron materializes due rent/salaries/subscriptions as *pending* expenses; idempotent via notes marker | 🔄 | `app/services/recurring.py`, `POST /jobs/recurring-expenses`, `netlify/functions/recurring-expenses.mjs` (08:00 IST) |
 
 ## Integrations & ops
 

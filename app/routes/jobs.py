@@ -17,6 +17,7 @@ from app.config import get_settings
 from app.database import get_db, SheetDB
 from app.services.email import EmailError, email_configured, send_email
 from app.services.lead_intake import IntakeError, run_intake
+from app.services.recurring import post_due_recurring
 from app.services.reminders import build_followup_digest, due_followups
 
 log = logging.getLogger(__name__)
@@ -73,6 +74,25 @@ def followup_reminders(request: Request, db: SheetDB = Depends(get_db)):
         {"sent": len(recipients), "due": len(leads)},
         f"Sent follow-up reminder for {len(leads)} lead(s) to {len(recipients)} recipient(s).",
     )
+
+
+@router.post("/jobs/recurring-expenses")
+def recurring_expenses_job(request: Request, dry_run: bool = False,
+                           db: SheetDB = Depends(get_db)):
+    """Materialize due recurring expenses for the current month (idempotent)."""
+    if not _authorized(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=403)
+    summary = post_due_recurring(db, dry_run=dry_run)
+    if _logged_in(request):
+        if summary["posted"]:
+            request.session["flash"] = (
+                f"Posted {summary['posted']} recurring expense(s) as pending "
+                f"({summary['skipped']} up to date)."
+            )
+        else:
+            request.session["flash"] = "Recurring expenses are up to date — nothing posted."
+        return RedirectResponse(url="/expenses", status_code=303)
+    return JSONResponse(summary)
 
 
 @router.post("/jobs/import-leads")

@@ -13,6 +13,9 @@ services:
         sync: false
       - key: SECRET_KEY
         generateValue: true
+      # Session cookie is HTTPS-only in production (localhost dev leaves it unset)
+      - key: COOKIE_SECURE
+        value: "true"
       - key: CURRENCY
         value: INR
       # Supabase Postgres — paste the *pooled* connection string

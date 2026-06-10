@@ -59,7 +59,7 @@ app.add_middleware(LoginRequiredMiddleware)
 app.add_middleware(
     SessionMiddleware,
     secret_key=config.secret_key,
-    https_only=False,
+    https_only=config.cookie_secure,   # True on Render (COOKIE_SECURE=true); False for localhost
     same_site="lax",
 )
 

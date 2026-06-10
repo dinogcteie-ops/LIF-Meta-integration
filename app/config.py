@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     app_password: str = "changeme"
     app_password_hash: str = ""
     secret_key: str = "dev-secret-change-me"
+    # Mark the session cookie Secure (HTTPS-only). True in production (set
+    # COOKIE_SECURE=true on Render); default False so localhost login still works.
+    cookie_secure: bool = False
     # Local SQLite by default; Supabase Postgres in production. Use the pooled
     # connection string (…pooler.supabase.com:6543) for the running app.
     database_url: str = "sqlite:///./lif.db"

@@ -72,6 +72,12 @@
 
         <input type="hidden" name="source" value="Website Inquiry">
 
+        <!-- Honeypot: invisible to humans; bots that auto-fill every field reveal themselves -->
+        <div style="position:absolute; left:-9999px; top:-9999px" aria-hidden="true">
+          <label>Website</label>
+          <input type="text" name="website" tabindex="-1" autocomplete="off">
+        </div>
+
         <button type="submit" class="btn btn-gold w-100 py-2" style="font-size:1rem">
           <i class="bi bi-send"></i> Send Inquiry
         </button>

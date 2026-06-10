@@ -1,3 +1,5 @@
+import hmac as _hmac
+
 import bcrypt as _bcrypt
 from fastapi import Request
 from fastapi.responses import RedirectResponse
@@ -12,12 +14,28 @@ _PUBLIC_PATHS = {"/login", "/logout", "/healthz", "/inquiry", "/meta/refresh"}
 _PUBLIC_PREFIXES = ("/static/", "/portal/", "/webhooks/", "/jobs/")
 
 def verify_password(plain: str) -> bool:
+    """Check the supplied password.
+
+    Prefers APP_PASSWORD_HASH (a bcrypt hash, so the plaintext never has to live
+    in the environment); falls back to a constant-time comparison against
+    APP_PASSWORD for the simple single-password setup.
+    """
     try:
-        stored = settings.app_password
-        h = _bcrypt.hashpw(stored.encode(), _bcrypt.gensalt())
-        return _bcrypt.checkpw(plain.encode(), h)
+        stored_hash = settings.app_password_hash
+        if stored_hash:
+            return _bcrypt.checkpw(plain.encode(), stored_hash.encode())
+        return _hmac.compare_digest(plain.encode(), settings.app_password.encode())
     except Exception:
         return False
+
+
+def client_ip(request: Request) -> str:
+    """Best-effort client IP — first X-Forwarded-For hop (Netlify/Render sit in
+    front of the app), falling back to the socket peer."""
+    xff = request.headers.get("x-forwarded-for", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
 
 
 def is_logged_in(request: Request) -> bool:

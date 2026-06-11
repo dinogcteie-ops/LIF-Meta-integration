@@ -9,6 +9,7 @@ from app.enums import CategoryScope, PaymentStatus, PaymentType
 from app.services.analytics import expense_analytics as _expense_analytics
 from app.rbac import require
 from app.templating import templates
+from app.validators import parse_amount, parse_date_safe, parse_enum
 
 router = APIRouter(dependencies=[Depends(require("finance.view"))])
 
@@ -117,6 +118,10 @@ def create_expense(
     payment_type: Optional[str] = Form(None),
     db: SheetDB = Depends(get_db),
 ):
+    error = _validate_expense_input(scope, payment_status, amount, paid_amount, date)
+    if error:
+        request.session["flash"] = error
+        return RedirectResponse(url="/expenses/new", status_code=303)
     scope_val = CategoryScope(scope)
     eid = int(event_id) if event_id else None
     if scope_val != CategoryScope.event:
@@ -128,7 +133,7 @@ def create_expense(
     rday = int(recurring_day) if recurring_day.strip() and rec else None
     pt = (payment_type or "").strip() or None
     exp = db.create_expense(
-        date_=date_cls.fromisoformat(date),
+        date_=parse_date_safe(date, "Expense date")[0],
         scope=scope_val.value,
         event_id=eid,
         category_id=category_id,
@@ -238,6 +243,7 @@ def edit_expense_form(expense_id: int, request: Request, db: SheetDB = Depends(g
 @router.post("/expenses/{expense_id}")
 def update_expense(
     expense_id: int,
+    request: Request,
     date: str = Form(...),
     scope: str = Form(...),
     event_id: str = Form(""),
@@ -256,6 +262,10 @@ def update_expense(
     exp = db.get_expense(expense_id)
     if exp is None:
         raise HTTPException(status_code=404)
+    error = _validate_expense_input(scope, payment_status, amount, paid_amount, date)
+    if error:
+        request.session["flash"] = error
+        return RedirectResponse(url=f"/expenses/{expense_id}/edit", status_code=303)
     scope_val = CategoryScope(scope)
     eid = int(event_id) if event_id else None
     if scope_val != CategoryScope.event:
@@ -267,7 +277,7 @@ def update_expense(
     pt = (payment_type or "").strip() or None
     db.update_expense(
         expense_id,
-        date_=date_cls.fromisoformat(date),
+        date_=parse_date_safe(date, "Expense date")[0],
         scope=scope_val.value,
         event_id=eid,
         category_id=category_id,
@@ -299,9 +309,34 @@ def delete_expense(expense_id: int, db: SheetDB = Depends(get_db)):
 
 
 def _parse_date(value: Optional[str]):
-    if not value:
-        return None
-    return date_cls.fromisoformat(value)
+    # Safe parse: malformed filter/form dates become None instead of a 500.
+    return parse_date_safe(value or "", "Date")[0]
+
+
+def _validate_expense_input(scope: str, payment_status: str, amount: float,
+                            paid_amount: float, date: str) -> Optional[str]:
+    """Returns a flash message on the first problem, None when OK."""
+    _, err = parse_enum(CategoryScope, scope, "expense scope")
+    if err:
+        return err
+    ps, err = parse_enum(PaymentStatus, payment_status, "payment status",
+                         default=PaymentStatus.paid)
+    if err:
+        return err
+    _, err = parse_amount(amount, "Amount")
+    if err:
+        return err
+    _, err = parse_amount(paid_amount, "Paid amount")
+    if err:
+        return err
+    if ps == PaymentStatus.partial and paid_amount > amount:
+        return "Paid amount cannot exceed the expense amount."
+    d, err = parse_date_safe(date, "Expense date")
+    if err:
+        return err
+    if d is None:
+        return "Expense date is required."
+    return None
 
 
 def _resolve_paid_amount(status: PaymentStatus, amount: float, paid_amount: float) -> float:

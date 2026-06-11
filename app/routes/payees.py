@@ -6,6 +6,7 @@ from app.database import get_db, SheetDB
 from app.services.reports import top_payees
 from app.rbac import require
 from app.templating import templates
+from app.validators import valid_email
 
 PAYEE_TYPES = ["freelancer", "vendor", "other"]
 
@@ -48,6 +49,11 @@ def create_payee(
     notes: str = Form(""),
     db: SheetDB = Depends(get_db),
 ):
+    if email.strip() and not valid_email(email):
+        request.session["flash"] = "That email address doesn't look valid."
+        return RedirectResponse(url="/payees/new", status_code=303)
+    if payee_type not in PAYEE_TYPES:
+        payee_type = "other"
     p = db.create_payee(
         name=name.strip(),
         payee_type=payee_type,

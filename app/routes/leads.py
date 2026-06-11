@@ -8,6 +8,7 @@ from app.database import get_db, SheetDB
 from app.enums import EventType, FollowupStatus, LeadSource, LeadStatus, LostReason
 from app.rbac import require
 from app.templating import templates
+from app.validators import find_phone_match, parse_amount, parse_date_safe, parse_enum
 
 router = APIRouter(dependencies=[Depends(require("leads.view"))])
 
@@ -124,11 +125,19 @@ def create_lead(
     if status == "lost" and not rejection_reason.strip():
         request.session["flash"] = "Please choose a lost reason before marking a lead as Lost."
         return RedirectResponse(url="/leads/new", status_code=303)
+    error = _validate_lead_input(status, source, followup_status, quoted_amount,
+                                 revised_quote, num_events,
+                                 tentative_date, followup_date)
+    if error:
+        request.session["flash"] = error
+        return RedirectResponse(url="/leads/new", status_code=303)
+    # Duplicate warning (never blocks): same normalized phone as an existing lead.
+    dup = find_phone_match(contact, db.list_leads()) if contact.strip() else None
     lead = db.create_lead(
         client_name=client_name.strip(),
         contact=contact.strip(),
         event_type=event_type.strip(),
-        tentative_date=_parse_date(tentative_date),
+        tentative_date=parse_date_safe(tentative_date)[0],
         source=source.strip(),
         status=status,
         quoted_amount=quoted_amount,
@@ -140,8 +149,13 @@ def create_lead(
         meta_campaign=meta_campaign.lower() in ("on", "true", "yes", "1"),
         referral_name=referral_name.strip(),
         followup_status=followup_status or "pending",
-        followup_date=_parse_date(followup_date),
+        followup_date=parse_date_safe(followup_date)[0],
     )
+    if dup is not None:
+        request.session["flash"] = (
+            f"Heads up: this phone number matches existing lead "
+            f"#{dup.id} ({dup.client_name}) — possible duplicate."
+        )
     return RedirectResponse(url=f"/leads/{lead.id}", status_code=303)
 
 
@@ -208,12 +222,18 @@ def update_lead(
     if status == "lost" and not rejection_reason.strip():
         request.session["flash"] = "Please choose a lost reason before marking a lead as Lost."
         return RedirectResponse(url=f"/leads/{lead_id}/edit", status_code=303)
+    error = _validate_lead_input(status, source, followup_status, quoted_amount,
+                                 revised_quote, num_events,
+                                 tentative_date, followup_date)
+    if error:
+        request.session["flash"] = error
+        return RedirectResponse(url=f"/leads/{lead_id}/edit", status_code=303)
     lead = db.update_lead(
         lead_id,
         client_name=client_name.strip(),
         contact=contact.strip(),
         event_type=event_type.strip(),
-        tentative_date=_parse_date(tentative_date),
+        tentative_date=parse_date_safe(tentative_date)[0],
         source=source.strip(),
         status=status,
         quoted_amount=quoted_amount,
@@ -225,7 +245,7 @@ def update_lead(
         meta_campaign=meta_campaign.lower() in ("on", "true", "yes", "1"),
         referral_name=referral_name.strip(),
         followup_status=followup_status or "pending",
-        followup_date=_parse_date(followup_date),
+        followup_date=parse_date_safe(followup_date)[0],
     )
     if lead is None:
         raise HTTPException(status_code=404)
@@ -280,8 +300,35 @@ def convert_lead(
     return RedirectResponse(url=f"/events/{ev.id}", status_code=303)
 
 
-def _parse_date(value: str):
-    value = (value or "").strip()
-    if not value:
-        return None
-    return date_cls.fromisoformat(value)
+def _validate_lead_input(status: str, source: str, followup_status: str,
+                         quoted_amount: float, revised_quote: float,
+                         num_events: int, tentative_date: str,
+                         followup_date: str) -> str | None:
+    """Server-side checks shared by create/update. Returns a flash message
+    on the first problem, None when everything is acceptable."""
+    _, err = parse_enum(LeadStatus, status, "lead status")
+    if err:
+        return err
+    if source.strip():
+        _, err = parse_enum(LeadSource, source, "lead source")
+        if err:
+            return err
+    if followup_status.strip():
+        _, err = parse_enum(FollowupStatus, followup_status, "follow-up status")
+        if err:
+            return err
+    _, err = parse_amount(quoted_amount, "Quoted amount")
+    if err:
+        return err
+    _, err = parse_amount(revised_quote, "Revised quote")
+    if err:
+        return err
+    if num_events < 0:
+        return "Number of events cannot be negative."
+    _, err = parse_date_safe(tentative_date, "Tentative date")
+    if err:
+        return err
+    _, err = parse_date_safe(followup_date, "Follow-up date")
+    if err:
+        return err
+    return None

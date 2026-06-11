@@ -6,6 +6,7 @@ from app.database import get_db, SheetDB
 from app.services.reports import event_profits, top_clients
 from app.rbac import require
 from app.templating import templates
+from app.validators import find_phone_match, valid_email
 
 router = APIRouter(dependencies=[Depends(require("directory.view"))])
 
@@ -44,6 +45,11 @@ def create_client(
     notes: str = Form(""),
     db: SheetDB = Depends(get_db),
 ):
+    if email.strip() and not valid_email(email):
+        request.session["flash"] = "That email address doesn't look valid."
+        return RedirectResponse(url="/clients/new", status_code=303)
+    # Duplicate warning (never blocks): same normalized phone as an existing client.
+    dup = find_phone_match(phone, db.list_clients()) if phone.strip() else None
     c = db.create_client(
         name=name.strip(),
         phone=phone.strip() or None,
@@ -51,6 +57,11 @@ def create_client(
         address=address.strip() or None,
         notes=notes.strip() or None,
     )
+    if dup is not None:
+        request.session["flash"] = (
+            f"Heads up: this phone number matches existing client "
+            f"'{dup.name}' (#{dup.id}) — possible duplicate."
+        )
     return RedirectResponse(url=f"/clients/{c.id}", status_code=303)
 
 
@@ -97,6 +108,7 @@ def edit_client_form(client_id: int, request: Request, db: SheetDB = Depends(get
 @router.post("/clients/{client_id}")
 def update_client(
     client_id: int,
+    request: Request,
     name: str = Form(...),
     phone: str = Form(""),
     email: str = Form(""),
@@ -104,6 +116,9 @@ def update_client(
     notes: str = Form(""),
     db: SheetDB = Depends(get_db),
 ):
+    if email.strip() and not valid_email(email):
+        request.session["flash"] = "That email address doesn't look valid."
+        return RedirectResponse(url=f"/clients/{client_id}/edit", status_code=303)
     c = db.update_client(
         client_id,
         name=name.strip(),

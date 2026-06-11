@@ -27,6 +27,7 @@ from datetime import datetime
 
 from app.config import get_settings
 from app.database import SheetDB
+from app.validators import normalize_phone
 
 
 # ─── Column-name candidates ───────────────────────────────────────────────────
@@ -117,11 +118,10 @@ def _parse_date(value: str):
     return None
 
 
-def _normalize_phone(raw: str) -> str:
-    """Strip 'p:' prefix and non-digit chars; return last 10 digits."""
-    cleaned = re.sub(r'^p:', '', (raw or "").strip(), flags=re.IGNORECASE)
-    digits = re.sub(r'\D', '', cleaned)
-    return digits[-10:] if len(digits) >= 10 else digits
+# Single source of truth for phone comparison lives in app.validators;
+# kept under the old name because this module's dedup logic (and its tests)
+# refer to it as _normalize_phone.
+_normalize_phone = normalize_phone
 
 
 def _strip_meta_id(raw: str) -> str:

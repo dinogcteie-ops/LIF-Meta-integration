@@ -11,6 +11,7 @@ from app.database import get_db, SheetDB
 from app.enums import CategoryScope, PaymentStatus
 from app.rbac import require
 from app.templating import templates
+from app.validators import parse_amount, parse_date_safe
 
 router = APIRouter(dependencies=[Depends(require("finance.view"))])
 
@@ -40,10 +41,13 @@ def quick_payment(
     db: SheetDB = Depends(get_db),
 ):
     """Quick-add a payment from mobile."""
-    pd = date_cls.fromisoformat(payment_date) if payment_date else date_cls.today()
+    amt, err = parse_amount(amount, "Payment amount")
+    if err:
+        return RedirectResponse(url="/quick?error=amount", status_code=303)
+    pd = parse_date_safe(payment_date, "Payment date")[0] or date_cls.today()
     db.create_payment(
         event_id=event_id,
-        amount=amount,
+        amount=amt,
         payment_date=pd,
         notes=notes.strip() or None,
     )
@@ -61,7 +65,10 @@ def quick_expense(
     db: SheetDB = Depends(get_db),
 ):
     """Quick-add an expense from mobile."""
-    exp_date = date_cls.fromisoformat(date) if date else date_cls.today()
+    amt, err = parse_amount(amount, "Amount")
+    if err:
+        return RedirectResponse(url="/quick?error=amount", status_code=303)
+    exp_date = parse_date_safe(date, "Expense date")[0] or date_cls.today()
     eid = int(event_id) if event_id.strip() else None
     scope = "event" if eid else "company"
     db.create_expense(
@@ -69,9 +76,9 @@ def quick_expense(
         scope=scope,
         event_id=eid,
         category_id=category_id,
-        amount=amount,
+        amount=amt,
         payment_status="paid",
-        paid_amount=amount,
+        paid_amount=amt,
         paid_to=paid_to.strip() or None,
         notes=notes.strip() or None,
     )

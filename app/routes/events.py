@@ -11,6 +11,7 @@ from app.enums import EventStatus, EventType, LeadSource
 from app.services.reports import event_profit, event_profits
 from app.rbac import require
 from app.templating import templates
+from app.validators import parse_amount, parse_date_safe, parse_enum
 
 
 def _parse_schedule(raw: str) -> Optional[str]:
@@ -186,6 +187,10 @@ def create_event(
     referral_source: str = Form(""),
     db: SheetDB = Depends(get_db),
 ):
+    error = _validate_event_input(status, quoted_amount, event_date)
+    if error:
+        request.session["flash"] = error
+        return RedirectResponse(url="/events/new", status_code=303)
     cid = int(client_id) if client_id.strip() else None
     ev = db.create_event(
         name=name.strip(),
@@ -263,6 +268,7 @@ def event_detail(event_id: int, request: Request, db: SheetDB = Depends(get_db))
 @router.post("/events/{event_id}")
 def update_event(
     event_id: int,
+    request: Request,
     name: str = Form(...),
     client_name: str = Form(""),
     client_id: str = Form(""),
@@ -277,6 +283,10 @@ def update_event(
     delivery_status: str = Form(""),
     db: SheetDB = Depends(get_db),
 ):
+    error = _validate_event_input(status, quoted_amount, event_date)
+    if error:
+        request.session["flash"] = error
+        return RedirectResponse(url=f"/events/{event_id}", status_code=303)
     schedule_json = _parse_schedule(payment_schedule)
     cid = int(client_id) if client_id.strip() else None
     ev = db.update_event(
@@ -310,6 +320,7 @@ def delete_event(event_id: int, db: SheetDB = Depends(get_db)):
 @router.post("/events/{event_id}/payments")
 def add_payment(
     event_id: int,
+    request: Request,
     amount: float = Form(...),
     payment_date: str = Form(...),
     notes: str = Form(""),
@@ -317,6 +328,10 @@ def add_payment(
 ):
     if db.get_event(event_id) is None:
         raise HTTPException(status_code=404)
+    _, err = parse_amount(amount, "Payment amount")
+    if err:
+        request.session["flash"] = err
+        return RedirectResponse(url=f"/events/{event_id}", status_code=303)
     db.create_payment(
         event_id=event_id,
         amount=amount,
@@ -336,7 +351,20 @@ def delete_payment(event_id: int, payment_id: int, db: SheetDB = Depends(get_db)
 
 
 def _parse_date(value: str) -> Optional[date_cls]:
-    value = (value or "").strip()
-    if not value:
-        return None
-    return date_cls.fromisoformat(value)
+    # Safe parse: malformed/absurd dates become None instead of a 500.
+    return parse_date_safe(value, "Event date")[0]
+
+
+def _validate_event_input(status: str, quoted_amount: float,
+                          event_date: str) -> Optional[str]:
+    """Returns a flash message on the first problem, None when OK."""
+    _, err = parse_enum(EventStatus, status, "event status")
+    if err:
+        return err
+    _, err = parse_amount(quoted_amount, "Quoted amount")
+    if err:
+        return err
+    _, err = parse_date_safe(event_date, "Event date")
+    if err:
+        return err
+    return None

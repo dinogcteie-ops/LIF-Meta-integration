@@ -691,6 +691,9 @@ class Database:
         "followup_enabled":      "on",   # "on"/"off"
         # Google Sheet lead intake high-water mark (newest imported Timestamp)
         "leads_intake_cursor":   "",
+        # New-lead owner-notification high-water mark (highest lead id already
+        # emailed). Advances only after a successful send so failures retry.
+        "new_lead_notify_cursor": "",
         # RBAC: comma-separated emails per role for Google sign-in (app/rbac.py).
         # Sign-in is invitation-only — an email in none of these lists is rejected.
         "role_owners":           "dinogcteie@gmail.com, lifeinframe.in@gmail.com",

@@ -26,41 +26,11 @@ from app.services.lead_report import (
     previous_period,
 )
 from app.services.recurring import post_due_recurring
-from app.services.reminders import build_followup_digest, build_new_leads_email, due_followups
+from app.services.reminders import build_followup_digest, due_followups, notify_new_leads
 from app.services.reports import filter_leads
 
 log = logging.getLogger(__name__)
 router = APIRouter()
-
-
-def _notify_new_leads(imported_leads: list, db) -> None:
-    """Email owner(s) about newly imported leads. Returns an outcome dict for
-    observability (surfaced in the import job's JSON summary). Never raises —
-    a notification failure must not crash or roll back the import itself."""
-    if not imported_leads:
-        return {"notified": False, "reason": "no_new_leads"}
-    if not email_configured():
-        log.warning("New-lead notification skipped: SMTP not configured.")
-        return {"notified": False, "reason": "smtp_not_configured"}
-    studio = db.get_settings_dict()
-    recipients = [e.strip() for e in (studio.get("role_owners") or "").split(",")
-                  if e.strip()]
-    if not recipients:
-        log.warning("New-lead notification skipped: no owners in role_owners.")
-        return {"notified": False, "reason": "no_recipients"}
-    try:
-        subject, html = build_new_leads_email(
-            imported_leads, get_settings().public_base_url or "https://lifcrm.netlify.app"
-        )
-        send_email(subject, html, recipients)
-        log.info("New-lead notification sent: %d lead(s) to %d owner(s).",
-                 len(imported_leads), len(recipients))
-        return {"notified": True, "leads": len(imported_leads),
-                "recipients": len(recipients)}
-    except Exception as exc:  # noqa: BLE001 — broaden: any failure must be logged, not swallowed
-        log.warning("New-lead notification FAILED (%s): %s",
-                    type(exc).__name__, exc)
-        return {"notified": False, "reason": f"{type(exc).__name__}: {exc}"}
 
 
 def _logged_in(request: Request) -> bool:
@@ -243,8 +213,11 @@ def import_leads_job(request: Request, dry_run: bool = False,
             return RedirectResponse(url="/settings", status_code=303)
         return JSONResponse({"error": str(exc)}, status_code=400)
 
-    if not dry_run and summary["imported"] > 0:
-        summary["notification"] = _notify_new_leads(summary["imported_leads"], db)
+    # Notify owners about inbound leads not yet emailed. Run on every real tick
+    # (not just when this tick imported something): the cursor-based notifier is
+    # idempotent, retries past failures, and also catches webhook-created leads.
+    if not dry_run:
+        summary["notification"] = notify_new_leads(db)
 
     if ui:
         if dry_run:

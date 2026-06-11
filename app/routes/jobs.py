@@ -34,21 +34,33 @@ router = APIRouter()
 
 
 def _notify_new_leads(imported_leads: list, db) -> None:
-    """Email owner(s) about newly imported leads. Silent on any failure."""
+    """Email owner(s) about newly imported leads. Returns an outcome dict for
+    observability (surfaced in the import job's JSON summary). Never raises —
+    a notification failure must not crash or roll back the import itself."""
+    if not imported_leads:
+        return {"notified": False, "reason": "no_new_leads"}
     if not email_configured():
-        return
+        log.warning("New-lead notification skipped: SMTP not configured.")
+        return {"notified": False, "reason": "smtp_not_configured"}
     studio = db.get_settings_dict()
     recipients = [e.strip() for e in (studio.get("role_owners") or "").split(",")
                   if e.strip()]
     if not recipients:
-        return
+        log.warning("New-lead notification skipped: no owners in role_owners.")
+        return {"notified": False, "reason": "no_recipients"}
     try:
         subject, html = build_new_leads_email(
             imported_leads, get_settings().public_base_url or "https://lifcrm.netlify.app"
         )
         send_email(subject, html, recipients)
-    except EmailError as exc:
-        log.warning("New-lead notification failed: %s", exc)
+        log.info("New-lead notification sent: %d lead(s) to %d owner(s).",
+                 len(imported_leads), len(recipients))
+        return {"notified": True, "leads": len(imported_leads),
+                "recipients": len(recipients)}
+    except Exception as exc:  # noqa: BLE001 — broaden: any failure must be logged, not swallowed
+        log.warning("New-lead notification FAILED (%s): %s",
+                    type(exc).__name__, exc)
+        return {"notified": False, "reason": f"{type(exc).__name__}: {exc}"}
 
 
 def _logged_in(request: Request) -> bool:
@@ -231,7 +243,7 @@ def import_leads_job(request: Request, dry_run: bool = False,
         return JSONResponse({"error": str(exc)}, status_code=400)
 
     if not dry_run and summary["imported"] > 0:
-        _notify_new_leads(summary["imported_leads"], db)
+        summary["notification"] = _notify_new_leads(summary["imported_leads"], db)
 
     if ui:
         if dry_run:

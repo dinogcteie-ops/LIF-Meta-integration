@@ -51,6 +51,11 @@ class Settings(BaseSettings):
     smtp_password: str = ""            # Gmail *app password*, not the account password
     smtp_from: str = ""                # overrides the From address; blank = smtp_user
     public_base_url: str = "https://lifcrm.netlify.app"  # for links in emails
+    # Gmail API transport (HTTPS) — Render blocks outbound SMTP, so production
+    # sends via the Gmail API instead. Reuses google_client_id/secret; the
+    # refresh token (gmail.send scope) is minted once via
+    # scripts/get_gmail_refresh_token.py. Blank → fall back to SMTP (local dev).
+    gmail_refresh_token: str = ""
 
     # --- Inbound lead capture (Google Sheet) — interim until Meta is fully live ---
     leads_intake_sheet_id: str = ""    # spreadsheet key of the inbound enquiries sheet

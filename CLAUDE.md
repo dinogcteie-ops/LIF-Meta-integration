@@ -130,6 +130,17 @@ integration (lead capture via `POST /webhooks/meta/leads` + campaign metrics at 
   - `POST /jobs/import-leads` (`?dry_run=1`) — pulls new rows from the inbound Google
     Sheet into leads (`app/services/lead_intake.py`); dedup via a row-count cursor in
     settings.
-- Relevant env vars (set on Render): `SMTP_USER`, `SMTP_PASSWORD` (Gmail app password),
-  `SMTP_FROM`, `PUBLIC_BASE_URL`, `LEADS_INTAKE_SHEET_ID`, `LEADS_INTAKE_TAB`. Recipients
-  + on/off toggle are editable in the Settings page (DB settings).
+- **Email transport — Render blocks outbound SMTP.** Connections to
+  `smtp.gmail.com:465` from Render fail with `[Errno 101] Network is unreachable`,
+  so SMTP **cannot** be used in production (this silently broke every email until
+  found). `app/services/email.py` therefore sends via the **Gmail API over HTTPS**
+  (port 443, allowed) when `GMAIL_REFRESH_TOKEN` is set, and falls back to SMTP only
+  for local dev. Mint the refresh token once with
+  `scripts/get_gmail_refresh_token.py` (needs Gmail API enabled + the `gmail.send`
+  scope on the existing OAuth client). Never reintroduce a plain-SMTP send path for
+  prod.
+- Relevant env vars (set on Render): `GMAIL_REFRESH_TOKEN` (Gmail API send; reuses
+  `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`), `SMTP_FROM` (From address),
+  `PUBLIC_BASE_URL`, `LEADS_INTAKE_SHEET_ID`, `LEADS_INTAKE_TAB`. `SMTP_USER`/
+  `SMTP_PASSWORD` are only used by the local-dev SMTP fallback. Recipients + on/off
+  toggle are editable in the Settings page (DB settings).

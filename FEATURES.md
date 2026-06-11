@@ -78,7 +78,8 @@ _Last updated: 2026-06-10 (latency cache + dashboard breakdowns + directory back
 | Feature | Status | Notes |
 |---|---|---|
 | **Meta Ads** lead capture (`POST /webhooks/meta/leads`) + metrics at `/meta` | ✅ | `app/routes/meta.py` |
-| **Follow-up reminder emails** (daily Gmail digest, Settings-configurable recipients) | ⚙️ | `app/routes/jobs.py`, `reminders.py`, `email.py`; needs `SMTP_*` + recipients |
+| **Follow-up reminder emails** (daily Gmail digest, Settings-configurable recipients) | ⚙️ | `app/routes/jobs.py`, `reminders.py`, `email.py`; needs email transport + recipients |
+| **Email over Gmail API (HTTPS)** — Render blocks outbound SMTP, so all app email (notifications, digest, report) sends via the Gmail API; SMTP is local-dev fallback only. One-time `GMAIL_REFRESH_TOKEN` via `scripts/get_gmail_refresh_token.py` | 🔄 | `app/services/email.py`; reuses `GOOGLE_CLIENT_ID/SECRET` |
 | **Google Sheet lead intake** (daily pull → leads, dry-run + cursor dedup) | ⚙️ | `app/services/lead_intake.py`; needs sheet shared with SA + `LEADS_INTAKE_*` |
 | **New-lead owner email** — owners pinged when inbound (Instagram/Meta) leads are captured. Resilient: cursor high-water-mark (`new_lead_notify_cursor`), advances only on a successful send so transient SMTP failures retry; runs every import tick so webhook-created leads are covered too; no historical blast on first run | 🔄 | `notify_new_leads` in `reminders.py`, wired into `POST /jobs/import-leads` |
 | **Recurring expenses auto-post** — daily cron materializes due rent/salaries/subscriptions as *pending* expenses; idempotent via notes marker | 🔄 | `app/services/recurring.py`, `POST /jobs/recurring-expenses`, `netlify/functions/recurring-expenses.mjs` (08:00 IST) |

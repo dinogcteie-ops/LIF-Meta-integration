@@ -1,4 +1,5 @@
 import os
+import re
 import time
 
 from fastapi.templating import Jinja2Templates
@@ -53,9 +54,22 @@ def _format_pct(value: float | None) -> str:
         return str(value)
 
 
+def _wa_link(contact: str | None) -> str:
+    """Return a wa.me URL for the given contact string, or '' if not usable."""
+    if not contact:
+        return ""
+    digits = re.sub(r"\D", "", contact)
+    if len(digits) == 10:
+        digits = "91" + digits          # add India country code
+    if len(digits) < 7:
+        return ""
+    return f"https://wa.me/{digits}"
+
+
 templates.env.filters["money"] = _format_money
 templates.env.filters["pct"] = _format_pct
 templates.env.filters["zip"] = zip
+templates.env.filters["wa_link"] = _wa_link
 
 # RBAC check, callable from any template: {% if can(request, 'finance.edit') %}
 from app.rbac import can as _can  # noqa: E402  (import here to avoid cycles at module top)

@@ -47,9 +47,17 @@
       </div>
       <div class="col-md-3">
         <div class="stat-label">Contact</div>
-        <div class="mt-1">
+        <div class="mt-1 d-flex align-items-center gap-2 flex-wrap">
           {% if lead.contact %}
             <span class="contact-chip"><i class="bi bi-telephone"></i>{{ lead.contact }}</span>
+            {% set wa = lead.contact | wa_link %}
+            {% if wa %}
+            <a href="{{ wa }}" class="btn btn-sm btn-success icon-btn"
+               target="_blank" rel="noopener noreferrer"
+               title="WhatsApp {{ lead.contact }}">
+              <i class="bi bi-whatsapp"></i>WhatsApp
+            </a>
+            {% endif %}
           {% else %}—{% endif %}
         </div>
       </div>

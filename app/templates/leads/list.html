@@ -141,6 +141,15 @@
             {% if lead.quoted_amount %}{{ lead.quoted_amount | money }}{% else %}—{% endif %}
           </td>
           <td class="text-end pe-3">
+            {% set wa = lead.contact | wa_link %}
+            {% if wa %}
+            <a href="{{ wa }}" class="action-link text-success me-2"
+               target="_blank" rel="noopener noreferrer"
+               onclick="event.stopPropagation()"
+               title="WhatsApp {{ lead.contact }}">
+              <i class="bi bi-whatsapp"></i>
+            </a>
+            {% endif %}
             <a href="/leads/{{ lead.id }}" class="action-link">Open</a>
           </td>
         </tr>

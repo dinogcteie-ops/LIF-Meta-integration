@@ -61,6 +61,17 @@ class Settings(BaseSettings):
     leads_intake_sheet_id: str = ""    # spreadsheet key of the inbound enquiries sheet
     leads_intake_tab: str = "Form Responses 1"
 
+    # --- LLM (lead triage, reports) ---
+    # Gemini free tier by default (no card needed); "anthropic" (Claude Haiku)
+    # is the paid upgrade path. Blank API key disables LLM features gracefully:
+    # leads import untriaged, reports fall back to rule-based insights.
+    llm_provider: str = "gemini"            # "gemini" | "anthropic"
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.0-flash"
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-haiku-4-5-20251001"
+    llm_daily_budget: int = 200             # max LLM calls per day (free-tier guard)
+
     @property
     def email_from(self) -> str:
         return self.smtp_from or self.smtp_user

@@ -77,6 +77,48 @@
         <div class="stat-label">Follow-up date</div>
         <div class="mt-1 fw-semibold">{{ lead.followup_date or '—' }}</div>
       </div>
+      {% if lead.budget_range %}
+      <div class="col-md-3">
+        <div class="stat-label">Budget (stated)</div>
+        <div class="mt-1 fw-semibold">{{ lead.budget_range }}</div>
+      </div>
+      {% endif %}
+      {% if lead.city %}
+      <div class="col-md-3">
+        <div class="stat-label">City</div>
+        <div class="mt-1 fw-semibold">{{ lead.city }}</div>
+      </div>
+      {% endif %}
+      <div class="col-md-6">
+        <div class="stat-label">AI triage</div>
+        <div class="mt-1 d-flex align-items-center gap-2 flex-wrap">
+          {% if lead.triage == 'hot' %}
+            <span class="badge bg-danger-subtle text-danger-emphasis">🔥 Hot</span>
+          {% elif lead.triage == 'warm' %}
+            <span class="badge bg-warning-subtle text-warning-emphasis">Warm</span>
+          {% elif lead.triage == 'low_intent' %}
+            <span class="badge bg-secondary-subtle text-secondary-emphasis">Low intent</span>
+          {% elif lead.triage == 'spam' %}
+            <span class="badge bg-dark-subtle text-secondary">Spam?</span>
+          {% else %}
+            <span class="text-muted">Not triaged yet</span>
+          {% endif %}
+          {% if lead.triage_reason %}
+            <span class="text-muted small">{{ lead.triage_reason }}</span>
+          {% endif %}
+          {% if lead.triage %}
+            <span class="text-muted small">({{ lead.triage_source }})</span>
+          {% endif %}
+          <form method="post" action="/leads/{{ lead.id }}/triage" class="d-flex align-items-center gap-1 ms-auto">
+            <select name="triage" class="form-select form-select-sm" style="width:130px">
+              {% for t, label in [('hot','🔥 Hot'), ('warm','Warm'), ('low_intent','Low intent'), ('spam','Spam')] %}
+                <option value="{{ t }}" {{ 'selected' if lead.triage == t else '' }}>{{ label }}</option>
+              {% endfor %}
+            </select>
+            <button class="btn btn-sm btn-outline-secondary" title="Manual override — corrections train the future model">Set</button>
+          </form>
+        </div>
+      </div>
       {% if lead.rejection_reason %}
       <div class="col-md-6">
         <div class="stat-label">Lost reason</div>

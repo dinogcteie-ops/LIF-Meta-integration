@@ -34,6 +34,13 @@
     <div class="funnel-card-label">Cold</div>
     <div class="funnel-card-value">{{ funnel.cold_count }}</div>
   </a>
+  {% if hot_open %}
+  <a href="/leads?triage=hot" class="funnel-card {{ 'active' if filter_triage == 'hot' else '' }}"
+     title="AI-triaged hot leads still open — call these first">
+    <div class="funnel-card-label">🔥 Hot</div>
+    <div class="funnel-card-value">{{ hot_open }}</div>
+  </a>
+  {% endif %}
   {% if funnel.total_active %}
   <div class="funnel-stat ms-auto">
     <div class="funnel-stat-label">Conversion</div>
@@ -84,7 +91,16 @@
       {% endfor %}
     </select>
   </div>
-  {% if filter_status or filter_event_type or filter_source or filter_period != 'all' %}
+  <div class="col-auto">
+    <label class="form-label small mb-1">AI triage</label>
+    <select name="triage" class="form-select form-select-sm" style="width:130px" onchange="this.form.submit()">
+      <option value="">All</option>
+      {% for t, label in [('hot','🔥 Hot'), ('warm','Warm'), ('low_intent','Low intent'), ('spam','Spam')] %}
+        <option value="{{ t }}" {{ 'selected' if filter_triage == t else '' }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% if filter_status or filter_event_type or filter_source or filter_triage or filter_period != 'all' %}
   <div class="col-auto">
     <a href="/leads" class="btn btn-sm btn-outline-secondary">Clear filters</a>
   </div>
@@ -115,7 +131,18 @@
       {% for lead in leads %}
         <tr class="clickable-row" data-href="/leads/{{ lead.id }}">
           <td>
-            <div class="fw-semibold">{{ lead.client_name }}</div>
+            <div class="fw-semibold">
+              {{ lead.client_name }}
+              {% if lead.triage == 'hot' %}
+                <span class="badge bg-danger-subtle text-danger-emphasis ms-1" title="{{ lead.triage_reason }}">🔥 Hot</span>
+              {% elif lead.triage == 'warm' %}
+                <span class="badge bg-warning-subtle text-warning-emphasis ms-1" title="{{ lead.triage_reason }}">Warm</span>
+              {% elif lead.triage == 'low_intent' %}
+                <span class="badge bg-secondary-subtle text-secondary-emphasis ms-1" title="{{ lead.triage_reason }}">Low intent</span>
+              {% elif lead.triage == 'spam' %}
+                <span class="badge bg-dark-subtle text-secondary ms-1" title="{{ lead.triage_reason }}">Spam?</span>
+              {% endif %}
+            </div>
             {% if lead.contact %}<div class="text-muted small">{{ lead.contact }}</div>{% endif %}
           </td>
           <td class="text-muted small">{{ lead.event_type or '—' }}</td>

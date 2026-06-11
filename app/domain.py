@@ -142,6 +142,14 @@ class Lead:
     meta_lead_id: Optional[str] = None
     meta_campaign_name: Optional[str] = None
     meta_form_id: Optional[str] = None
+    # Structured capture (promoted out of free-text notes):
+    budget_range: str = ""
+    city: str = ""
+    # AI triage: "" (untriaged) | hot | warm | low_intent | spam
+    triage: str = ""
+    triage_source: str = ""      # llm | ml | manual
+    triage_reason: str = ""
+    triaged_at: str = ""
 
 
 @dataclass

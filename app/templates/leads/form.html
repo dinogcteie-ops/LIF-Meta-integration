@@ -63,6 +63,17 @@
                value="{{ lead.revised_quote if lead else '' }}"
                placeholder="e.g. 2.0">
       </div>
+      <div class="col-md-3">
+        <label class="form-label">City</label>
+        <input type="text" name="city" class="form-control"
+               value="{{ lead.city if lead else '' }}" placeholder="e.g. Chennai">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Stated budget</label>
+        <input type="text" name="budget_range" class="form-control"
+               value="{{ lead.budget_range if lead else '' }}"
+               placeholder="e.g. 50,000–75,000">
+      </div>
       <div class="col-md-4">
         <label class="form-label">Lead source</label>
         <select name="source" class="form-select">

@@ -188,6 +188,7 @@ def _process_row(row: dict, existing_phones: set, existing_meta_ids: set,
             notes=notes, meta_campaign=meta_campaign,
             meta_lead_id=raw_meta_id or None,
             meta_campaign_name=campaign or None,
+            budget_range=budget, city=city,
         )
         if phone:
             existing_phones.add(phone)

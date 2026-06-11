@@ -104,8 +104,22 @@ def build_new_leads_email(leads: list[Lead], base_url: str) -> tuple[str, str]:
     from datetime import datetime
     n = len(leads)
     noun = "lead" if n == 1 else "leads"
-    subject = f"[LIF CRM] {n} new {noun} from Meta / Instagram"
+    hot = sum(1 for l in leads if getattr(l, "triage", "") == "hot")
+    fire = f"🔥 {hot} hot — " if hot else ""
+    subject = f"[LIF CRM] {fire}{n} new {noun} from Meta / Instagram"
     base = base_url.rstrip("/")
+
+    _triage_style = {
+        "hot":        ("🔥 Hot", "#dc2626"),
+        "warm":       ("Warm", "#d97706"),
+        "low_intent": ("Low intent", "#6b7280"),
+        "spam":       ("Spam?", "#9ca3af"),
+    }
+
+    def _triage_cell(l) -> str:
+        label, color = _triage_style.get(getattr(l, "triage", "") or "", ("—", "#9ca3af"))
+        return (f'<td style="padding:8px 10px;border-bottom:1px solid #eee;'
+                f'color:{color};font-weight:600;font-size:13px;">{label}</td>')
 
     rows = "".join(
         f"""
@@ -114,6 +128,7 @@ def build_new_leads_email(leads: list[Lead], base_url: str) -> tuple[str, str]:
             <a href="{base}/leads/{l.id}" style="color:#2563eb;text-decoration:none;">
               {_esc(l.client_name) or '—'}</a>
           </td>
+          {_triage_cell(l)}
           <td style="padding:8px 10px;border-bottom:1px solid #eee;">{_esc(l.contact) or '—'}</td>
           <td style="padding:8px 10px;border-bottom:1px solid #eee;">{_esc(l.event_type) or '—'}</td>
           <td style="padding:8px 10px;border-bottom:1px solid #eee;">{_esc(l.source) or '—'}</td>
@@ -132,6 +147,7 @@ def build_new_leads_email(leads: list[Lead], base_url: str) -> tuple[str, str]:
     <thead>
       <tr style="background:#f9fafb;text-align:left;">
         <th style="padding:8px 10px;border-bottom:2px solid #e5e7eb;">Name</th>
+        <th style="padding:8px 10px;border-bottom:2px solid #e5e7eb;">Triage</th>
         <th style="padding:8px 10px;border-bottom:2px solid #e5e7eb;">Phone</th>
         <th style="padding:8px 10px;border-bottom:2px solid #e5e7eb;">Looking for</th>
         <th style="padding:8px 10px;border-bottom:2px solid #e5e7eb;">Source</th>

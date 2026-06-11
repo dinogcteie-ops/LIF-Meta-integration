@@ -139,6 +139,14 @@ class LeadRow(Base):
     meta_lead_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     meta_campaign_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     meta_form_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Structured capture (promoted out of free-text notes — prime triage signals):
+    budget_range: Mapped[str] = mapped_column(String(128), default="")
+    city: Mapped[str] = mapped_column(String(128), default="")
+    # AI triage: hot | warm | low_intent | spam ("" = not yet triaged).
+    triage: Mapped[str] = mapped_column(String(16), default="")
+    triage_source: Mapped[str] = mapped_column(String(16), default="")   # llm | ml | manual
+    triage_reason: Mapped[str] = mapped_column(Text, default="")
+    triaged_at: Mapped[str] = mapped_column(String(64), default="")
 
 
 class MetaMetricRow(Base):

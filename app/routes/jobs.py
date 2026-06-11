@@ -28,6 +28,7 @@ from app.services.lead_report import (
 from app.services.recurring import post_due_recurring
 from app.services.reminders import build_followup_digest, due_followups, notify_new_leads
 from app.services.reports import filter_leads
+from app.services.triage import triage_pending_leads
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -208,15 +209,26 @@ def import_leads_job(request: Request, dry_run: bool = False,
         summary = run_intake(db, dry_run=dry_run)
     except IntakeError as exc:
         log.warning("Lead intake error: %s", exc)
+        # The Sheet may be misconfigured/down, but webhook- and inquiry-created
+        # leads still deserve triage + owner notification on every tick — both
+        # are idempotent and cheap.
+        if not dry_run:
+            triage_pending_leads(db)
+            notify_new_leads(db)
         if ui:
             request.session["flash"] = f"Lead import error: {exc}"
             return RedirectResponse(url="/settings", status_code=303)
         return JSONResponse({"error": str(exc)}, status_code=400)
 
-    # Notify owners about inbound leads not yet emailed. Run on every real tick
-    # (not just when this tick imported something): the cursor-based notifier is
-    # idempotent, retries past failures, and also catches webhook-created leads.
     if not dry_run:
+        # AI-triage any leads without a verdict BEFORE notifying, so the
+        # new-lead email can carry the hot/spam tag. Best-effort: an LLM outage
+        # leaves leads untriaged and the next 5-min tick retries.
+        summary["triage"] = triage_pending_leads(db)
+        # Notify owners about inbound leads not yet emailed. Run on every real
+        # tick (not just when this tick imported something): the cursor-based
+        # notifier is idempotent, retries past failures, and also catches
+        # webhook-created leads.
         summary["notification"] = notify_new_leads(db)
 
     if ui:

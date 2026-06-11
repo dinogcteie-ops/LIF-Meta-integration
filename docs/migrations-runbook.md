@@ -24,17 +24,23 @@ $env:CONFIRM_PROD = "1"; alembic stamp 0001_baseline
 
 ## Per-release checklist
 
-1. **Rehearse on SQLite** (from repo root, venv active; `DATABASE_URL` unset):
+1. **Rehearse on SQLite.** Mind the trap: on the *new* code, `create_all`
+   builds the FULL new schema, so `stamp 0001_baseline` + `upgrade head` will
+   fail with duplicate columns. To simulate prod you need an **old-schema
+   stand-in**: either run `init_db()` from a `main` checkout, or `init_db()` on
+   the new code then `ALTER TABLE ... DROP COLUMN` the new columns before
+   stamping (see `dev/rehearse_0002.py` for a worked example). Then:
    ```powershell
-   Remove-Item lif_rehearsal.db -ErrorAction SilentlyContinue
    $env:DATABASE_URL = "sqlite:///./lif_rehearsal.db"
-   python -c "from app.db.engine import init_db; init_db()"   # old-schema stand-in
    alembic stamp 0001_baseline
    alembic upgrade head                                        # must succeed
    Remove-Item env:DATABASE_URL
    ```
    (For a higher-fidelity rehearsal, restore a `pg_dump` into a throwaway
    Postgres — Docker or a second free Supabase project — and run the same.)
+   Corollary for fresh dev/test DBs on current code: they are already at the
+   newest schema, so bring them under Alembic with `alembic stamp head` — never
+   `stamp 0001_baseline` + upgrade.
 2. **Preview the exact SQL** that would hit prod (offline mode, no connection):
    ```powershell
    $env:CONFIRM_PROD = "1"

@@ -109,6 +109,9 @@ def _lead(r: LeadRow) -> Lead:
         followup_status=r.followup_status or "pending", followup_date=r.followup_date,
         meta_lead_id=r.meta_lead_id, meta_campaign_name=r.meta_campaign_name,
         meta_form_id=r.meta_form_id,
+        budget_range=r.budget_range or "", city=r.city or "",
+        triage=r.triage or "", triage_source=r.triage_source or "",
+        triage_reason=r.triage_reason or "", triaged_at=r.triaged_at or "",
     )
 
 
@@ -591,7 +594,8 @@ class Database:
                     followup_date: Optional[date] = None,
                     meta_lead_id: Optional[str] = None,
                     meta_campaign_name: Optional[str] = None,
-                    meta_form_id: Optional[str] = None) -> Lead:
+                    meta_form_id: Optional[str] = None,
+                    budget_range: str = "", city: str = "") -> Lead:
         with self._s() as s:
             r = LeadRow(
                 client_name=client_name, contact=contact, event_type=event_type,
@@ -603,6 +607,7 @@ class Database:
                 followup_status=followup_status, followup_date=followup_date,
                 meta_lead_id=meta_lead_id, meta_campaign_name=meta_campaign_name,
                 meta_form_id=meta_form_id,
+                budget_range=budget_range, city=city,
             )
             # A lost lead has no pending follow-up.
             if status == "lost":
@@ -620,7 +625,9 @@ class Database:
                     follow_ups: str = "", rejection_reason: str = "",
                     meta_campaign: bool = False, referral_name: str = "",
                     followup_status: str = "pending",
-                    followup_date: Optional[date] = None) -> Optional[Lead]:
+                    followup_date: Optional[date] = None,
+                    budget_range: Optional[str] = None,
+                    city: Optional[str] = None) -> Optional[Lead]:
         with self._s() as s:
             r = s.get(LeadRow, lead_id)
             if r is None:
@@ -632,6 +639,11 @@ class Database:
             r.num_events = num_events; r.revised_quote = revised_quote
             r.follow_ups = follow_ups; r.rejection_reason = rejection_reason
             r.meta_campaign = meta_campaign; r.referral_name = referral_name
+            # None = "not supplied" (callers that predate these fields keep old values)
+            if budget_range is not None:
+                r.budget_range = budget_range
+            if city is not None:
+                r.city = city
             # A lost lead has no pending follow-up — force it done (#1).
             r.followup_status = "done" if status == "lost" else followup_status
             r.followup_date = followup_date
@@ -645,6 +657,28 @@ class Database:
             if r is not None:
                 s.delete(r)
             self._audit(s, "lead", lead_id, "delete", f"Deleted lead '{name}'")
+
+    def set_lead_triage(self, lead_id: int, triage: str, source: str,
+                        reason: str = "") -> Optional[Lead]:
+        """Record an AI/manual triage verdict (hot|warm|low_intent|spam)."""
+        with self._s() as s:
+            r = s.get(LeadRow, lead_id)
+            if r is None:
+                return None
+            r.triage = triage
+            r.triage_source = source
+            r.triage_reason = reason
+            r.triaged_at = _now()
+            s.flush()
+            return _lead(r)
+
+    def list_untriaged_leads(self, limit: int = 20) -> list[Lead]:
+        """Newest leads with no triage verdict yet (for the cron classifier)."""
+        with self._s() as s:
+            stmt = (select(LeadRow)
+                    .where((LeadRow.triage == "") | (LeadRow.triage.is_(None)))
+                    .order_by(LeadRow.id.desc()).limit(limit))
+            return [_lead(r) for r in s.scalars(stmt).all()]
 
     # ── Enrichment ────────────────────────────────────────────────────────────
 

@@ -44,6 +44,7 @@ def list_leads(
     period: str = "all",
     event_type: str = "",
     source: str = "",
+    triage: str = "",
     db: SheetDB = Depends(get_db),
 ):
     all_leads = db.list_leads()
@@ -59,11 +60,17 @@ def list_leads(
             continue
         if source and l.source != source:
             continue
+        if triage and l.triage != triage:
+            continue
         if start or end:
             d = _created_date(l)
             if d is None or (start and d < start) or (end and d > end):
                 continue
         leads.append(l)
+
+    # Open hot leads = AI says "call today" and they're still actionable.
+    hot_open = sum(1 for l in all_leads
+                   if l.triage == "hot" and l.status in ("new", "quoted"))
 
     from app.services.reports import lead_funnel, source_conversion
     funnel  = lead_funnel(all_leads)
@@ -82,6 +89,8 @@ def list_leads(
             "filter_period":     period,
             "filter_event_type": event_type,
             "filter_source":     source,
+            "filter_triage":     triage,
+            "hot_open":          hot_open,
         }
     )
 
@@ -119,6 +128,8 @@ def create_lead(
     referral_name:    str   = Form(""),
     followup_status:  str   = Form("pending"),
     followup_date:    str   = Form(""),
+    budget_range:     str   = Form(""),
+    city:             str   = Form(""),
     db: SheetDB = Depends(get_db),
 ):
     # (#2) A lost lead must have a reason recorded.
@@ -150,6 +161,8 @@ def create_lead(
         referral_name=referral_name.strip(),
         followup_status=followup_status or "pending",
         followup_date=parse_date_safe(followup_date)[0],
+        budget_range=budget_range.strip(),
+        city=city.strip(),
     )
     if dup is not None:
         request.session["flash"] = (
@@ -216,6 +229,8 @@ def update_lead(
     referral_name:    str   = Form(""),
     followup_status:  str   = Form("pending"),
     followup_date:    str   = Form(""),
+    budget_range:     str   = Form(""),
+    city:             str   = Form(""),
     db: SheetDB = Depends(get_db),
 ):
     # (#2) A lost lead must have a reason recorded.
@@ -246,9 +261,29 @@ def update_lead(
         referral_name=referral_name.strip(),
         followup_status=followup_status or "pending",
         followup_date=parse_date_safe(followup_date)[0],
+        budget_range=budget_range.strip(),
+        city=city.strip(),
     )
     if lead is None:
         raise HTTPException(status_code=404)
+    return RedirectResponse(url=f"/leads/{lead_id}", status_code=303)
+
+
+@router.post("/leads/{lead_id}/triage")
+def set_triage(
+    lead_id: int,
+    request: Request,
+    triage: str = Form(...),
+    db: SheetDB = Depends(get_db),
+):
+    """Manual triage override — these become gold labels for the future ML model."""
+    from app.services.triage import TRIAGE_CLASSES
+    if db.get_lead(lead_id) is None:
+        raise HTTPException(status_code=404)
+    if triage not in TRIAGE_CLASSES:
+        request.session["flash"] = f"Unknown triage class '{triage}'."
+        return RedirectResponse(url=f"/leads/{lead_id}", status_code=303)
+    db.set_lead_triage(lead_id, triage, "manual")
     return RedirectResponse(url=f"/leads/{lead_id}", status_code=303)
 
 

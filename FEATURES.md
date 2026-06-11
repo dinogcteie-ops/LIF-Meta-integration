@@ -65,6 +65,8 @@ _Last updated: 2026-06-10 (latency cache + dashboard breakdowns + directory back
 | Quoted/Cold → soft prompt for follow-up date | 🔄 | same branch |
 | "Why we lose leads" **filters**: source + explicit months (rolling 12) / quarter / year / custom range | 🔄 | same branch; counts by enquiry date |
 | **Lead pipeline** widget shows **Lost** + **Won % / Lost %** + the same source/date filters | 🔄 | same branch; `LeadFunnel.won_rate`/`lost_rate`, independent `pipe_*` filter |
+| **AI lead triage** — every new lead auto-classified Hot / Warm / Low-intent / Spam by LLM (Gemini free tier) inside the 5-min intake cron; badges + filter on leads list, 🔥 Hot chip, verdict + reason + manual override on lead detail; hot tag in new-lead owner email; daily LLM budget guard; LLM outage → lead imports untriaged, retried next tick | 🔄 | branch `feat/llm-triage`: `app/services/llm.py`, `triage.py`; needs `GEMINI_API_KEY` on Render |
+| **Structured lead capture** — `budget_range` + `city` promoted out of free-text notes (Sheet intake + manual form) | 🔄 | same branch; Alembic rev `0002_lead_triage_capture` |
 
 ## Dashboards — sharing
 
@@ -92,6 +94,8 @@ _Last updated: 2026-06-10 (latency cache + dashboard breakdowns + directory back
 | Supabase Postgres data layer (storage-agnostic) | ✅ | `app/services/db.py` |
 | Netlify (domain/CDN/proxy) → Render (FastAPI) hosting | ✅ | `netlify.toml`, `render.yaml` |
 | Scheduled jobs (Netlify cron → token-gated `/jobs/*`) | ✅ | `netlify/functions/*.mjs` |
+| **Alembic revived** — env.py repointed at the live schema, no-op baseline rev, prod guard (`CONFIRM_PROD=1`), runbook | 🔄 | branch `feat/enablers`; `migrations/`, `docs/migrations-runbook.md` |
+| **Server-side validation** — amounts ≥ 0, safe date/enum parsing (no more 500s on bad input), email shape checks, duplicate-phone warnings on lead/client create, shared `normalize_phone` | 🔄 | branch `feat/enablers`; `app/validators.py` + all write routes |
 
 ---
 

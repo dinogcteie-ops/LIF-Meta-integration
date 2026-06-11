@@ -46,6 +46,16 @@
   </div>
 </div>
 
+<div class="card mt-3"><div class="card-body">
+  <h2 class="section-title">AI analysis <span class="text-muted fw-normal" style="font-size:.8em">— ads &amp; financials, last 15 days</span></h2>
+  {% if ai_analysis %}
+    <div class="text-muted small mb-2">Generated {{ ai_analysis.generated_at }} · period {{ ai_analysis.period }}</div>
+    <div style="white-space: pre-wrap; font-size: .92rem;">{{ ai_analysis.text }}</div>
+  {% else %}
+    <div class="text-muted small">No analysis generated yet — it's produced with the lead report on the 1st &amp; 16th (needs <code>GEMINI_API_KEY</code>).</div>
+  {% endif %}
+</div></div>
+
 <div class="row g-3 mt-1">
   <div class="col-lg-6">
     <div class="card"><div class="card-body">

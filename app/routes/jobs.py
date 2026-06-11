@@ -16,6 +16,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 
 from app.config import get_settings
 from app.database import get_db, SheetDB
+from app.services.ad_analysis import analysis_or_fallback
 from app.services.email import EmailError, email_configured, send_email, send_email_with_images
 from app.services.lead_intake import IntakeError, run_intake
 from app.services.lead_report import (
@@ -127,8 +128,12 @@ def _build_and_send_lead_report(
                               start=period_start, end=period_end)
     leads_prev = filter_leads(all_leads, source=INSTAGRAM_SOURCE,
                               start=prev_start, end=prev_end)
+    # AI ads+financials narrative (aggregates only). None → email unchanged.
+    ai_text = analysis_or_fallback(db, period_start, period_end,
+                                   prev_start, prev_end, label_curr, label_prev)
     subject, html, images, text = build_report_email(
-        all_ig, leads_curr, leads_prev, label_curr, label_prev, period_str
+        all_ig, leads_curr, leads_prev, label_curr, label_prev, period_str,
+        ai_analysis=ai_text,
     )
     send_email_with_images(subject, html, images, recipients, text)
     log.info("Instagram lead report sent for %s to %d recipient(s)",

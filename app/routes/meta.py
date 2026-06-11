@@ -126,6 +126,7 @@ def meta_dashboard(request: Request, db: SheetDB = Depends(get_db)):
     currency = metrics[0].currency if metrics else ""
     last_synced = max((m.fetched_at for m in metrics), default="")
 
+    from app.services.ad_analysis import latest_analysis
     return templates.TemplateResponse(
         request, "meta/dashboard.html", {
             "campaigns": campaigns,
@@ -137,6 +138,7 @@ def meta_dashboard(request: Request, db: SheetDB = Depends(get_db)):
             "currency": currency,
             "last_synced": last_synced,
             "configured": bool(metrics),
+            "ai_analysis": latest_analysis(db),
         }
     )
 

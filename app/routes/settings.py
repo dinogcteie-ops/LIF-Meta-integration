@@ -6,6 +6,7 @@ from fastapi.responses import RedirectResponse
 
 from app.database import get_db, SheetDB
 from app.rbac import require
+from app.services.lead_report import default_period
 from app.services.recurring import generate_for_month
 from app.templating import refresh_template_globals, templates
 
@@ -24,12 +25,15 @@ def settings_page(request: Request, db: SheetDB = Depends(get_db)):
     for e in recurring:
         e.category = cats.get(e.category_id)
     today = date_cls.today()
+    report_start, report_end = default_period(today)
     return templates.TemplateResponse(
         request, "settings.html", {
             "studio": studio,
             "recurring": recurring,
             "today_year":  today.year,
             "today_month": today.month,
+            "report_start": report_start.isoformat(),
+            "report_end":   report_end.isoformat(),
         }
     )
 

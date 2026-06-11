@@ -31,6 +31,10 @@
 [functions."recurring-expenses"]
   schedule = "30 2 * * *"
 
+# Instagram lead report — 1st and 16th of each month at 09:30 IST (04:00 UTC).
+[functions."lead-report"]
+  schedule = "0 4 1,16 * *"
+
 # Proxy everything to the Render backend. Keep this LAST.
 [[redirects]]
   from = "/*"

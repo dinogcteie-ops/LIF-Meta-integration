@@ -9,16 +9,26 @@ from __future__ import annotations
 
 import logging
 from datetime import date
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 
 from app.config import get_settings
 from app.database import get_db, SheetDB
-from app.services.email import EmailError, email_configured, send_email
+from app.services.email import EmailError, email_configured, send_email, send_email_with_images
 from app.services.lead_intake import IntakeError, run_intake
+from app.services.lead_report import (
+    SOURCE as INSTAGRAM_SOURCE,
+    build_report_email,
+    build_text_summary,
+    default_period,
+    fmt_date,
+    previous_period,
+)
 from app.services.recurring import post_due_recurring
 from app.services.reminders import build_followup_digest, build_new_leads_email, due_followups
+from app.services.reports import filter_leads, lead_funnel
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -111,6 +121,92 @@ def recurring_expenses_job(request: Request, dry_run: bool = False,
             request.session["flash"] = "Recurring expenses are up to date — nothing posted."
         return RedirectResponse(url="/expenses", status_code=303)
     return JSONResponse(summary)
+
+
+@router.post("/jobs/lead-report")
+def lead_report_job(
+    request: Request,
+    start: Optional[str] = None,
+    end:   Optional[str] = None,
+    db:    SheetDB = Depends(get_db),
+):
+    """Email an Instagram lead report to owners.
+
+    Optional ``start`` / ``end`` query params (YYYY-MM-DD) set the current
+    period.  When omitted the standard 15-day window ending yesterday is used.
+    Called on the 1st and 16th of each month by Netlify cron, or manually from
+    the Settings page.
+    """
+    if not _authorized(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=403)
+    ui = _logged_in(request)
+
+    def _finish(payload: dict, msg: str | None = None):
+        if ui:
+            if msg:
+                request.session["flash"] = msg
+            return RedirectResponse(url="/settings", status_code=303)
+        return JSONResponse(payload)
+
+    studio     = db.get_settings_dict()
+    recipients = [e.strip() for e in (studio.get("role_owners") or "").split(",")
+                  if e.strip()]
+    if not recipients:
+        return _finish({"skipped": "no_recipients"},
+                       "No owners configured in Settings → Access & roles.")
+    if not email_configured():
+        return _finish({"error": "smtp_not_configured"},
+                       "Email isn't configured (set SMTP_USER / SMTP_PASSWORD).")
+
+    # ── Resolve date window ───────────────────────────────────────────────────
+    try:
+        today = date.today()
+        if start and end:
+            period_start = date.fromisoformat(start)
+            period_end   = date.fromisoformat(end)
+        else:
+            period_start, period_end = default_period(today)
+        prev_start, prev_end = previous_period(period_start, period_end)
+    except ValueError as exc:
+        return _finish({"error": f"invalid date: {exc}"},
+                       f"Invalid date format — use YYYY-MM-DD. ({exc})")
+
+    label_curr = f"{fmt_date(period_start)}–{fmt_date(period_end)}"
+    label_prev = f"{fmt_date(prev_start)}–{fmt_date(prev_end)}"
+    period_str = f"{label_curr} {period_start.year}"
+
+    # ── Load and filter leads ─────────────────────────────────────────────────
+    all_leads    = db.list_leads()
+    all_ig       = filter_leads(all_leads, source=INSTAGRAM_SOURCE)
+    leads_curr   = filter_leads(all_leads, source=INSTAGRAM_SOURCE,
+                                start=period_start, end=period_end)
+    leads_prev   = filter_leads(all_leads, source=INSTAGRAM_SOURCE,
+                                start=prev_start,   end=prev_end)
+
+    # ── Generate and send ─────────────────────────────────────────────────────
+    try:
+        subject, html, images = build_report_email(
+            all_ig, leads_curr, leads_prev, label_curr, label_prev, period_str
+        )
+        fc   = lead_funnel(leads_curr)
+        fp   = lead_funnel(leads_prev)
+        text = build_text_summary(fc, fp, label_curr, label_prev)
+        send_email_with_images(subject, html, images, recipients, text)
+    except Exception as exc:
+        log.warning("Instagram lead report failed: %s", exc)
+        return _finish({"error": str(exc)}, f"Report failed: {exc}")
+
+    log.info("Instagram lead report sent for %s to %s", period_str, recipients)
+    return _finish(
+        {
+            "sent": len(recipients),
+            "period": period_str,
+            "ig_total": len(all_ig),
+            "ig_curr": len(leads_curr),
+            "ig_prev": len(leads_prev),
+        },
+        f"Instagram lead report for {period_str} sent to {len(recipients)} owner(s).",
+    )
 
 
 @router.post("/jobs/import-leads")

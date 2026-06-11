@@ -81,6 +81,7 @@ _Last updated: 2026-06-10 (latency cache + dashboard breakdowns + directory back
 | **Follow-up reminder emails** (daily Gmail digest, Settings-configurable recipients) | ⚙️ | `app/routes/jobs.py`, `reminders.py`, `email.py`; needs `SMTP_*` + recipients |
 | **Google Sheet lead intake** (daily pull → leads, dry-run + cursor dedup) | ⚙️ | `app/services/lead_intake.py`; needs sheet shared with SA + `LEADS_INTAKE_*` |
 | **Recurring expenses auto-post** — daily cron materializes due rent/salaries/subscriptions as *pending* expenses; idempotent via notes marker | 🔄 | `app/services/recurring.py`, `POST /jobs/recurring-expenses`, `netlify/functions/recurring-expenses.mjs` (08:00 IST) |
+| **Instagram lead report** — bi-monthly email (1st & 16th) to owners with 5 matplotlib charts: overall status, last-15-days status, overall lost reasons, last-15-days lost reasons, period comparison + text summary. Manual trigger from Settings with custom date range. | 🔄 | `app/services/lead_report.py`, `POST /jobs/lead-report`, `netlify/functions/lead-report.mjs` (09:30 IST) |
 
 ## Integrations & ops
 

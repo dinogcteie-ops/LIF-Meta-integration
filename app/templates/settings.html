@@ -115,6 +115,40 @@
   </div>
 </section>
 
+<!-- ── Instagram lead report ──────────────────────────────────── -->
+<section class="settings-section mt-4">
+  <div class="settings-section-header">
+    <h5><i class="bi bi-bar-chart-line me-2"></i>Instagram lead report</h5>
+    <p class="text-muted small mb-0">
+      Bi-monthly report emailed to owners (1st &amp; 16th) with 5 charts:
+      overall lead status, last-15-days status, overall lost reasons,
+      last-15-days lost reasons, and a period comparison.
+      Trigger manually below for any custom date range.
+    </p>
+  </div>
+  <div class="settings-footer border-top mt-0 pt-3">
+    <form id="lead-report-form" method="post" action="/jobs/lead-report"
+          class="d-flex align-items-end gap-3 flex-wrap">
+      <div>
+        <label class="form-label small mb-1">Period start</label>
+        <input type="date" id="lr-start" class="form-control form-control-sm"
+               style="width:150px" value="{{ report_start }}">
+      </div>
+      <div>
+        <label class="form-label small mb-1">Period end</label>
+        <input type="date" id="lr-end" class="form-control form-control-sm"
+               style="width:150px" value="{{ report_end }}">
+      </div>
+      <button type="submit" class="btn btn-outline-dark btn-sm icon-btn">
+        <i class="bi bi-send"></i>Send report now
+      </button>
+      <span class="text-muted small align-self-center">
+        Generates charts &amp; emails owners immediately.
+      </span>
+    </form>
+  </div>
+</section>
+
 <!-- ── Access & roles (Google sign-in) ────────────────────────── -->
 <section class="settings-section mt-4">
   <div class="settings-section-header">
@@ -292,6 +326,18 @@
   document.querySelectorAll('.clickable-row[data-href]').forEach(row => {
     row.style.cursor = 'pointer';
     row.addEventListener('click', () => { window.location.href = row.dataset.href; });
+  });
+
+  // Lead-report form: inject start/end as query params so the job endpoint
+  // receives them (the endpoint reads query params, not form body fields).
+  document.getElementById('lead-report-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const s = document.getElementById('lr-start').value;
+    const n = document.getElementById('lr-end').value;
+    if (!s || !n) { alert('Please choose both a start and end date.'); return; }
+    this.action = '/jobs/lead-report?start=' + encodeURIComponent(s)
+                + '&end='   + encodeURIComponent(n);
+    this.submit();
   });
 </script>
 {% endblock %}

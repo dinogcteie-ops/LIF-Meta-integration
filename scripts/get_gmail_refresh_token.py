@@ -28,7 +28,13 @@ import sys
 import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
 from urllib.parse import urlencode, urlparse, parse_qs
+
+# Run as a plain script (python scripts/…) puts scripts/ on sys.path, not the
+# repo root — so `import app` could pick up a stale installed copy. Force this
+# repo's root to the front so we import the local app package.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import requests
 
@@ -70,8 +76,8 @@ def main() -> int:
         "redirect_uri": REDIRECT_URI,
         "response_type": "code",
         "scope": SCOPE,
-        "access_type": "offline",      # ask for a refresh token
-        "prompt": "consent",           # force a fresh refresh token every run
+        "access_type": "offline",          # ask for a refresh token
+        "prompt": "select_account consent",  # force account choice + fresh refresh token
     }
     auth_url = f"{AUTH_URL}?{urlencode(params)}"
 

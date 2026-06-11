@@ -237,6 +237,24 @@ def derive_insights(
 
 # ─── Chart styling ────────────────────────────────────────────────────────────
 
+def warm_matplotlib() -> None:
+    """Pay matplotlib's one-time font-cache + backend init cost at app boot.
+
+    The first ever ``savefig`` in a fresh container builds the font cache, which
+    can take tens of seconds to a couple of minutes on a small/free instance.
+    Doing it once at startup keeps the first real report render fast enough to
+    finish well inside the upstream proxy timeout. Safe + best-effort: any
+    failure here must never block app startup."""
+    try:
+        fig, ax = plt.subplots(figsize=(1, 1))
+        ax.bar([0, 1], [1, 2])
+        ax.set_title("warmup")
+        fig.savefig(io.BytesIO(), format="png")
+        plt.close(fig)
+    except Exception:  # noqa: BLE001 — boot warm-up is best-effort
+        pass
+
+
 def _save_png(fig) -> bytes:
     buf = io.BytesIO()
     fig.savefig(buf, format="png", bbox_inches="tight", dpi=130, facecolor="white")

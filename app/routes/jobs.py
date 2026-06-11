@@ -11,7 +11,7 @@ import logging
 from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 
 from app.config import get_settings
@@ -135,39 +135,39 @@ def recurring_expenses_job(request: Request, dry_run: bool = False,
 
 
 def _build_and_send_lead_report(
-    recipients: list[str], period_start: date, period_end: date
-) -> None:
-    """Heavy lifting for the Instagram report: chart rendering + SMTP send.
+    db: SheetDB, recipients: list[str], period_start: date, period_end: date
+) -> str:
+    """Build the Instagram report's charts + HTML and email it. Returns the
+    period label on success; raises on failure so the caller can report it.
 
-    Runs in a background task so the HTTP request returns instantly (matplotlib
-    + Gmail SSL can take a minute or two on the free tier, which otherwise times
-    the browser/proxy out). Uses a fresh ``get_db()`` singleton — safe outside
-    the request scope. Failures are logged, not raised (nobody is waiting)."""
+    Runs synchronously inside the request: the open connection keeps the (free
+    tier) instance alive until the send completes, and matplotlib is pre-warmed
+    at boot so this stays fast. An in-process BackgroundTask is unreliable here
+    — the instance can be reclaimed once the response returns, killing the
+    detached task before the email is sent."""
     prev_start, prev_end = previous_period(period_start, period_end)
     label_curr = f"{fmt_date(period_start)}–{fmt_date(period_end)}"
     label_prev = f"{fmt_date(prev_start)}–{fmt_date(prev_end)}"
     period_str = f"{label_curr} {period_start.year}"
-    try:
-        db = get_db()
-        all_leads  = db.list_leads()
-        all_ig     = filter_leads(all_leads, source=INSTAGRAM_SOURCE)
-        leads_curr = filter_leads(all_leads, source=INSTAGRAM_SOURCE,
-                                  start=period_start, end=period_end)
-        leads_prev = filter_leads(all_leads, source=INSTAGRAM_SOURCE,
-                                  start=prev_start, end=prev_end)
-        subject, html, images, text = build_report_email(
-            all_ig, leads_curr, leads_prev, label_curr, label_prev, period_str
-        )
-        send_email_with_images(subject, html, images, recipients, text)
-        log.info("Instagram lead report sent for %s to %s", period_str, recipients)
-    except Exception as exc:  # noqa: BLE001 — background task, log and move on
-        log.warning("Instagram lead report failed for %s: %s", period_str, exc)
+
+    all_leads  = db.list_leads()
+    all_ig     = filter_leads(all_leads, source=INSTAGRAM_SOURCE)
+    leads_curr = filter_leads(all_leads, source=INSTAGRAM_SOURCE,
+                              start=period_start, end=period_end)
+    leads_prev = filter_leads(all_leads, source=INSTAGRAM_SOURCE,
+                              start=prev_start, end=prev_end)
+    subject, html, images, text = build_report_email(
+        all_ig, leads_curr, leads_prev, label_curr, label_prev, period_str
+    )
+    send_email_with_images(subject, html, images, recipients, text)
+    log.info("Instagram lead report sent for %s to %d recipient(s)",
+             period_str, len(recipients))
+    return period_str
 
 
 @router.post("/jobs/lead-report")
 def lead_report_job(
     request: Request,
-    background_tasks: BackgroundTasks,
     start: Optional[str] = None,
     end:   Optional[str] = None,
     db:    SheetDB = Depends(get_db),
@@ -177,8 +177,8 @@ def lead_report_job(
     Optional ``start`` / ``end`` query params (YYYY-MM-DD) set the current
     period. When omitted the standard 15-day window ending yesterday is used.
     Called on the 1st and 16th of each month by Netlify cron, or manually from
-    the Settings page. The cheap checks run inline; chart rendering + send are
-    deferred to a background task so the response returns immediately.
+    the Settings page. Runs synchronously (matplotlib is warmed at boot, so the
+    render is fast) — see ``_build_and_send_lead_report`` for why.
     """
     if not _authorized(request):
         return JSONResponse({"error": "unauthorized"}, status_code=403)
@@ -201,7 +201,7 @@ def lead_report_job(
         return _finish({"error": "smtp_not_configured"},
                        "Email isn't configured (set SMTP_USER / SMTP_PASSWORD).")
 
-    # ── Resolve date window (fast — validate before scheduling) ───────────────
+    # ── Resolve date window ───────────────────────────────────────────────────
     try:
         if start and end:
             period_start = date.fromisoformat(start)
@@ -214,16 +214,17 @@ def lead_report_job(
         return _finish({"error": f"invalid date: {exc}"},
                        f"Invalid date format — use YYYY-MM-DD. ({exc})")
 
-    period_str = f"{fmt_date(period_start)}–{fmt_date(period_end)} {period_start.year}"
+    # ── Build + send synchronously ────────────────────────────────────────────
+    try:
+        period_str = _build_and_send_lead_report(db, recipients, period_start, period_end)
+    except Exception as exc:  # noqa: BLE001 — surface the real reason to the caller
+        log.warning("Instagram lead report failed (%s): %s", type(exc).__name__, exc)
+        return _finish({"error": f"{type(exc).__name__}: {exc}"},
+                       f"Report failed: {exc}", status=500)
 
-    # ── Defer the slow work (chart render + SMTP) to a background task ─────────
-    background_tasks.add_task(
-        _build_and_send_lead_report, recipients, period_start, period_end
-    )
     return _finish(
-        {"scheduled": True, "period": period_str, "recipients": len(recipients)},
-        f"Generating the Instagram report for {period_str} — it will arrive in "
-        f"{len(recipients)} owner inbox(es) within a minute or two.",
+        {"sent": len(recipients), "period": period_str},
+        f"Instagram lead report for {period_str} sent to {len(recipients)} owner(s).",
     )
 
 

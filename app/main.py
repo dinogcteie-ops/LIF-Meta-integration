@@ -23,11 +23,15 @@ async def lifespan(_: FastAPI):
     try:
         from app.db.engine import init_db
         from app.services.db import get_db
+        from app.services.lead_report import warm_matplotlib
         from app.templating import refresh_template_globals
         init_db()
         db = get_db()
         db.seed_if_empty()
         refresh_template_globals(db.get_settings_dict())
+        # Pay matplotlib's one-time font-cache cost now, so the first lead-report
+        # render at request time stays fast (avoids the proxy timeout).
+        warm_matplotlib()
     except Exception as exc:
         logging.warning("Could not initialise database on startup: %s", exc)
     yield

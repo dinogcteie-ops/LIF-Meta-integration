@@ -115,6 +115,9 @@ def client_portal(event_id: int, token: str, request: Request, db: SheetDB = Dep
     elif event.status == EventStatus.active:
         current_stage = 0
 
+    # Load milestones — when present, replace the static 5-stage timeline.
+    milestones = db.list_milestones(event_id=event_id)
+
     return templates.TemplateResponse(
         request,
         "portal/view.html",
@@ -127,6 +130,7 @@ def client_portal(event_id: int, token: str, request: Request, db: SheetDB = Dep
             "progress_pct": round(progress_pct, 1),
             "delivery_stages": delivery_stages,
             "current_stage": current_stage,
+            "milestones": milestones,
             "token": token,
         },
     )

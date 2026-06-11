@@ -19,11 +19,11 @@ from sqlalchemy import select
 from app.db.engine import SessionLocal
 from app.db.tables import (
     AuditRow, CategoryRow, ClientRow, EventRow, ExpenseRow, LeadRow,
-    MetaMetricRow, PayeeRow, PaymentRow, SettingRow,
+    MetaMetricRow, MilestoneRow, PayeeRow, PaymentRow, SettingRow,
 )
 from app.domain import (
     AuditEntry, Client, Event, EventPayment, Expense, ExpenseCategory, Lead,
-    MetaMetric, Payee,
+    MetaMetric, Milestone, Payee,
 )
 from app.enums import CategoryScope, EventStatus, PaymentStatus
 
@@ -109,6 +109,14 @@ def _lead(r: LeadRow) -> Lead:
         followup_status=r.followup_status or "pending", followup_date=r.followup_date,
         meta_lead_id=r.meta_lead_id, meta_campaign_name=r.meta_campaign_name,
         meta_form_id=r.meta_form_id,
+    )
+
+
+def _milestone(r: MilestoneRow) -> Milestone:
+    return Milestone(
+        id=r.id, event_id=r.event_id, phase=r.phase, position=r.position,
+        due_date=r.due_date, completed_at=r.completed_at,
+        assignee_payee_id=r.assignee_payee_id, notes=r.notes or "",
     )
 
 
@@ -349,6 +357,8 @@ class Database:
                 s.delete(p)
             for e in s.scalars(select(ExpenseRow).where(ExpenseRow.event_id == event_id)).all():
                 s.delete(e)
+            for m in s.scalars(select(MilestoneRow).where(MilestoneRow.event_id == event_id)).all():
+                s.delete(m)
             if r is not None:
                 s.delete(r)
             self._audit(s, "event", event_id, "delete", f"Deleted event '{ev_name}'")
@@ -748,6 +758,95 @@ class Database:
             entries = [_audit_entry(r) for r in s.scalars(stmt).all()]
         entries.sort(key=lambda e: e.timestamp, reverse=True)
         return entries[:limit]
+
+    # ── Milestones ────────────────────────────────────────────────────────────
+
+    @_request_cached
+    def list_milestones(self, event_id: Optional[int] = None) -> list[Milestone]:
+        with self._s() as s:
+            stmt = select(MilestoneRow).order_by(MilestoneRow.position)
+            if event_id is not None:
+                stmt = stmt.where(MilestoneRow.event_id == event_id)
+            return [_milestone(r) for r in s.scalars(stmt).all()]
+
+    def create_milestone(self, event_id: int, phase: str, position: int,
+                         due_date: Optional[date] = None,
+                         assignee_payee_id: Optional[int] = None,
+                         notes: str = "") -> Milestone:
+        with self._s() as s:
+            r = MilestoneRow(event_id=event_id, phase=phase, position=position,
+                             due_date=due_date, completed_at=None,
+                             assignee_payee_id=assignee_payee_id, notes=notes)
+            s.add(r); s.flush()
+            self._audit(s, "milestone", r.id, "create",
+                        f"Added milestone '{phase}' for event #{event_id}")
+            return _milestone(r)
+
+    def update_milestone(self, milestone_id: int, due_date: Optional[date] = None,
+                         assignee_payee_id: Optional[int] = None,
+                         notes: str = "") -> Optional[Milestone]:
+        with self._s() as s:
+            r = s.get(MilestoneRow, milestone_id)
+            if r is None:
+                return None
+            r.due_date = due_date
+            r.assignee_payee_id = assignee_payee_id
+            r.notes = notes
+            s.flush()
+            return _milestone(r)
+
+    def toggle_milestone(self, milestone_id: int,
+                         today: Optional[date] = None) -> Optional[Milestone]:
+        """Toggle completed_at: set to today if None, clear if already set."""
+        with self._s() as s:
+            r = s.get(MilestoneRow, milestone_id)
+            if r is None:
+                return None
+            if r.completed_at is None:
+                r.completed_at = today or date.today()
+            else:
+                r.completed_at = None
+            s.flush()
+            return _milestone(r)
+
+    def delete_milestone(self, milestone_id: int) -> None:
+        with self._s() as s:
+            r = s.get(MilestoneRow, milestone_id)
+            if r is not None:
+                event_id = r.event_id
+                s.delete(r)
+                self._audit(s, "milestone", milestone_id, "delete",
+                            f"Deleted milestone #{milestone_id} for event #{event_id}")
+
+    def seed_milestones(self, event_id: int, event_type: Optional[str] = None) -> list[Milestone]:
+        """Create default phase milestones for a new event if none exist yet."""
+        from app.services.delivery import phases_for_event_type
+        existing = self.list_milestones(event_id=event_id)
+        if existing:
+            return existing
+        phases = phases_for_event_type(event_type)
+        milestones = []
+        for idx, phase in enumerate(phases):
+            milestones.append(self.create_milestone(event_id=event_id, phase=phase, position=idx))
+        return milestones
+
+    def sync_delivery_status(self, event_id: int) -> Optional[str]:
+        """Recompute delivery_status from milestones and write it to the event.
+
+        Returns the new status (or None if milestones are empty / no phase completed).
+        Never writes when there are no milestones at all (legacy events untouched).
+        """
+        from app.services.delivery import delivery_status_from_milestones
+        milestones = self.list_milestones(event_id=event_id)
+        if not milestones:
+            return None   # no milestones → leave event untouched
+        new_status = delivery_status_from_milestones(milestones)
+        with self._s() as s:
+            r = s.get(EventRow, event_id)
+            if r is not None:
+                r.delivery_status = new_status
+                s.flush()
+        return new_status
 
     # ── Recurring expenses ────────────────────────────────────────────────────
 

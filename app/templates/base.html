@@ -83,6 +83,12 @@
       </a>
       {% endif %}
       {% if can(request, "finance.view") %}
+      <a href="/delivery"
+         class="sidebar-link {% if '/delivery' in request.url.path %}active{% endif %}">
+        <i class="bi bi-list-check"></i><span>Delivery</span>
+      </a>
+      {% endif %}
+      {% if can(request, "finance.view") %}
       <a href="/calendar"
          class="sidebar-link {% if '/calendar' in request.url.path %}active{% endif %}">
         <i class="bi bi-calendar3"></i><span>Calendar</span>

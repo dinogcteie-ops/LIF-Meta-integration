@@ -329,6 +329,66 @@
   {% endif %}
 </div>
 
+<!-- Milestones card -->
+{% if milestones %}
+<div class="card lif-card mb-4">
+  <div class="section-header">
+    <h5 class="section-title"><i class="bi bi-list-check me-2"></i>Milestones</h5>
+  </div>
+  <div class="card-body">
+    <ol class="list-group list-group-numbered mb-3">
+      {% for m in milestones %}
+      <li class="list-group-item d-flex align-items-center gap-2 px-3 py-2
+                 {{ 'bg-danger bg-opacity-10' if m.due_date and m.completed_at is none and m.due_date < today else '' }}">
+        <!-- toggle -->
+        <form method="post" action="/events/{{ event.id }}/milestones/{{ m.id }}/toggle">
+          <button type="submit" class="btn btn-sm p-0 border-0"
+                  title="{{ 'Mark incomplete' if m.completed_at else 'Mark complete' }}"
+                  style="font-size:1.2rem; line-height:1; color:{{ 'var(--lif-green)' if m.completed_at else 'var(--lif-muted)' }};">
+            <i class="bi {{ 'bi-check-circle-fill' if m.completed_at else 'bi-circle' }}"></i>
+          </button>
+        </form>
+        <div class="flex-grow-1">
+          <span class="{{ 'text-decoration-line-through text-muted' if m.completed_at else '' }}">{{ m.phase }}</span>
+          {% if m.completed_at %}
+            <span class="badge bg-success ms-1 small">Done {{ m.completed_at }}</span>
+          {% elif m.due_date and m.due_date < today %}
+            <span class="badge bg-danger ms-1 small">Overdue</span>
+          {% endif %}
+        </div>
+        <!-- inline due-date update -->
+        <form method="post" action="/events/{{ event.id }}/milestones/{{ m.id }}" class="d-flex align-items-center gap-1">
+          <input type="date" name="due_date" class="form-control form-control-sm"
+                 style="width:140px;" value="{{ m.due_date or '' }}">
+          <input type="hidden" name="notes" value="{{ m.notes }}">
+          <button type="submit" class="btn btn-outline-secondary btn-sm">Save</button>
+        </form>
+        <!-- delete -->
+        <form method="post" action="/events/{{ event.id }}/milestones/{{ m.id }}/delete">
+          <button type="submit" class="btn btn-sm btn-link text-danger p-0"
+                  title="Remove milestone">
+            <i class="bi bi-trash"></i>
+          </button>
+        </form>
+      </li>
+      {% endfor %}
+    </ol>
+    <!-- add milestone row -->
+    <form method="post" action="/events/{{ event.id }}/milestones" class="row g-2 mt-1">
+      <div class="col-md-5">
+        <input name="phase" class="form-control form-control-sm" placeholder="Phase name" required>
+      </div>
+      <div class="col-md-3">
+        <input type="date" name="due_date" class="form-control form-control-sm">
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-dark btn-sm w-100">Add</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
 <!-- Delivery stepper (only shown when delivery_status is set) -->
 {% if event.delivery_status %}
 {% set ds = event.delivery_status %}

@@ -9,7 +9,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.auth import LoginRequiredMiddleware
 from app.config import BASE_DIR, get_settings
 from app.routes import (
-    auth, calendar, categories, clients, dashboard, events, expenses, export,
+    auth, calendar, categories, clients, dashboard, delivery, events, expenses, export,
     jobs, leads, meta, payables, payees, portal, quick, receivables, reports,
     settings, workshop,
 )
@@ -72,6 +72,7 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 app.include_router(auth.router)
 app.include_router(calendar.router)
 app.include_router(dashboard.router)
+app.include_router(delivery.router)
 app.include_router(events.router)
 app.include_router(clients.router)
 app.include_router(payees.router)

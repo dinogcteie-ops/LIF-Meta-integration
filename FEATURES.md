@@ -9,7 +9,7 @@ when you add or ship a feature (see the **Release workflow** in [CLAUDE.md](CLAU
 - 🔄 **On branch** — built & verified, pending the end-of-month batch deploy
 - 📝 **Planned** — agreed/backlog, not started
 
-_Last updated: 2026-06-10 (latency cache + dashboard breakdowns + directory backfill, pending end-of-month deploy)._
+_Last updated: 2026-06-12 (delivery dashboard + milestones, pending end-of-month deploy)._
 
 ---
 
@@ -39,6 +39,7 @@ _Last updated: 2026-06-10 (latency cache + dashboard breakdowns + directory back
 | Event CRUD + profitability (income vs expense, margins) | ✅ | `EventProfit` in `reports.py` |
 | Payments tracking & collection % | ✅ | |
 | Delivery status workflow (shooting → editing → review → delivered) | ✅ | |
+| **Delivery dashboard** — `/delivery` page with milestone progress bars, overdue flags, summary strip; milestone CRUD on event detail; portal shows milestone checklist instead of static timeline | 🔄 | `app/routes/delivery.py`, `app/services/delivery.py`, `event_milestones` table, `app/templates/delivery/index.html` |
 
 ## Clients & Payees / Expenses
 

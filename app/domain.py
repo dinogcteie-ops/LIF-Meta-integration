@@ -145,6 +145,19 @@ class Lead:
 
 
 @dataclass
+class Milestone:
+    """One post-production phase milestone for an event."""
+    id: int
+    event_id: int
+    phase: str
+    position: int = 0
+    due_date: Optional[date] = None
+    completed_at: Optional[date] = None
+    assignee_payee_id: Optional[int] = None
+    notes: str = ""
+
+
+@dataclass
 class MetaMetric:
     """One campaign's metrics for a single day, pulled from the Meta Insights API."""
     id: int

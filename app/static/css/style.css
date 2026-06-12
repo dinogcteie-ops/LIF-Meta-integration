@@ -1470,6 +1470,14 @@ a:hover {
   font-size: .8rem;
 }
 
+/* Standard 3-stage payment schedule editor */
+.schedule-editor { max-width: 640px; }
+.schedule-stage-label {
+  display: inline-block;
+  font-size: .8rem; font-weight: 600;
+  color: var(--lif-ink, inherit);
+}
+
 /* Mobile tweaks for aging grid and filters */
 @media (max-width: 991.98px) {
   .aging-grid {

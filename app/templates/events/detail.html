@@ -398,32 +398,6 @@
   </div>
 </div>
 
-<!-- Delivery stepper (only shown when delivery_status is set) -->
-{% if event.delivery_status %}
-{% set ds = event.delivery_status %}
-{% set stage_order = ['shooting_done', 'editing', 'review', 'delivered'] %}
-{% set current_idx = stage_order.index(ds) if ds in stage_order else -1 %}
-<div class="card lif-card mb-4">
-  <div class="card-body pb-3">
-    <div class="delivery-stepper">
-      {% set stage_labels = {'shooting_done': 'Shooting done', 'editing': 'Editing', 'review': 'Review', 'delivered': 'Delivered'} %}
-      {% for key in stage_order %}
-        {% set idx = loop.index0 %}
-        <div class="delivery-step {{ 'done' if idx < current_idx else '' }} {{ 'current' if idx == current_idx else '' }}">
-          <div class="delivery-step-dot">
-            {% if idx < current_idx %}<i class="bi bi-check2"></i>{% else %}{{ idx + 1 }}{% endif %}
-          </div>
-          <div class="delivery-step-label">{{ stage_labels[key] }}</div>
-        </div>
-        {% if not loop.last %}
-          <div class="delivery-step-connector {{ 'done' if idx < current_idx else '' }}"></div>
-        {% endif %}
-      {% endfor %}
-    </div>
-  </div>
-</div>
-{% endif %}
-
 <!-- Delete payment modal -->
 <div class="modal fade" id="deletePaymentModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
@@ -467,7 +441,7 @@
       </div>
       <div class="col-md-1">
         <label class="form-label">Quoted</label>
-        <input type="number" step="1" min="0" name="quoted_amount" class="form-control" value="{{ event.quoted_amount|int }}">
+        <input type="number" step="0.01" min="0" name="quoted_amount" class="form-control" value="{{ event.quoted_amount }}">
       </div>
       <div class="col-md-2">
         <label class="form-label">Event type</label>
@@ -501,28 +475,55 @@
         <textarea name="notes" class="form-control" rows="2">{{ event.notes or '' }}</textarea>
       </div>
       <div class="col-12">
-        <label class="form-label">
+        <label class="form-label mb-2">
           Payment schedule
-          <span class="text-muted small fw-normal">one installment per line — <code>YYYY-MM-DD : amount : label</code></span>
+          <span class="text-muted small fw-normal">— standard 3-stage plan; fill a date + amount, or leave a row blank to skip</span>
         </label>
-        <textarea name="payment_schedule" class="form-control schedule-input" rows="3"
-                  placeholder="2025-12-01 : 50000 : Booking advance&#10;2026-01-15 : 30000 : Pre-shoot&#10;2026-02-01 : 20000 : On delivery">{{ schedule_text }}</textarea>
+        <div class="schedule-editor">
+          <div class="row g-2 align-items-center mb-2">
+            <div class="col-md-3"><span class="schedule-stage-label">Booking advance</span></div>
+            <div class="col-md-4">
+              <input type="date" name="adv_date" class="form-control form-control-sm"
+                     value="{{ std_schedule.advance.date }}">
+            </div>
+            <div class="col-md-5">
+              <input type="number" step="0.01" min="0" name="adv_amount"
+                     class="form-control form-control-sm" placeholder="Amount"
+                     value="{{ std_schedule.advance.amount }}">
+            </div>
+          </div>
+          <div class="row g-2 align-items-center mb-2">
+            <div class="col-md-3"><span class="schedule-stage-label">Event day</span></div>
+            <div class="col-md-4">
+              <input type="date" name="eventday_date" class="form-control form-control-sm"
+                     value="{{ std_schedule.eventday.date }}">
+            </div>
+            <div class="col-md-5">
+              <input type="number" step="0.01" min="0" name="eventday_amount"
+                     class="form-control form-control-sm" placeholder="Amount"
+                     value="{{ std_schedule.eventday.amount }}">
+            </div>
+          </div>
+          <div class="row g-2 align-items-center mb-2">
+            <div class="col-md-3"><span class="schedule-stage-label">On delivery</span></div>
+            <div class="col-md-4">
+              <input type="date" name="delivery_date" class="form-control form-control-sm"
+                     value="{{ std_schedule.delivery.date }}">
+            </div>
+            <div class="col-md-5">
+              <input type="number" step="0.01" min="0" name="delivery_amount"
+                     class="form-control form-control-sm" placeholder="Amount"
+                     value="{{ std_schedule.delivery.amount }}">
+            </div>
+          </div>
+        </div>
+        <label class="form-label small text-muted mt-2 mb-1">
+          Additional installments (optional) — <code>YYYY-MM-DD : amount : label</code>, one per line
+        </label>
+        <textarea name="payment_schedule_extra" class="form-control schedule-input" rows="2"
+                  placeholder="2026-01-15 : 30000 : Pre-shoot">{{ schedule_extra_text }}</textarea>
       </div>
     </form>
-      <!-- Delivery status (shown when event is completed) -->
-      <div class="col-md-4" id="deliveryStatusWrap">
-        <label class="form-label">
-          Delivery stage
-          <span class="text-muted small fw-normal">(post-production)</span>
-        </label>
-        <select name="delivery_status" class="form-select">
-          <option value="">— Not started —</option>
-          <option value="shooting_done" {{ 'selected' if event.delivery_status == 'shooting_done' }}>Shooting done</option>
-          <option value="editing"       {{ 'selected' if event.delivery_status == 'editing' }}>Editing</option>
-          <option value="review"        {{ 'selected' if event.delivery_status == 'review' }}>Review</option>
-          <option value="delivered"     {{ 'selected' if event.delivery_status == 'delivered' }}>Delivered</option>
-        </select>
-      </div>
     </div>
     <div class="d-flex justify-content-between align-items-center mt-3">
       <button type="button" class="btn btn-link text-danger p-0 small"

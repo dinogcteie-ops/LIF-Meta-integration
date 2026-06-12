@@ -27,7 +27,7 @@ def test_all_main_pages_load(client: TestClient):
     for path in [
         "/events", "/clients", "/leads", "/payees", "/calendar",
         "/receivables", "/payables", "/expenses", "/expenses/analytics",
-        "/categories", "/workshop", "/reports", "/quick", "/settings", "/meta",
+        "/categories", "/reports", "/quick", "/settings", "/meta",
     ]:
         assert client.get(path).status_code == 200, path
 

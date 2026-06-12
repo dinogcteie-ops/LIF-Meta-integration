@@ -52,24 +52,91 @@ def _parse_schedule(raw: str) -> Optional[str]:
     return json.dumps(items, ensure_ascii=False)
 
 
-def _schedule_to_text(schedule_json: Optional[str]) -> str:
-    """Inverse of _parse_schedule — turn JSON back into the textarea format."""
-    if not schedule_json:
+# ─── Standard 3-stage payment plan ────────────────────────────────────────────
+# The studio's default schedule. The detail page renders these as three fixed
+# rows; anything else the user typed survives in the "additional installments"
+# freeform box.
+SCHEDULE_ADVANCE  = "Booking advance"
+SCHEDULE_EVENTDAY = "Event day"
+SCHEDULE_DELIVERY = "On delivery"
+
+# Map a stored label (lower-cased) back onto one of the three standard rows.
+_STD_LABEL_KEYS = {
+    "booking advance": "advance", "advance": "advance",
+    "event day": "eventday", "event": "eventday",
+    "on delivery": "delivery", "delivery": "delivery",
+}
+_STD_LABELS = {"advance": SCHEDULE_ADVANCE,
+               "eventday": SCHEDULE_EVENTDAY,
+               "delivery": SCHEDULE_DELIVERY}
+
+
+def _amount_str(amt) -> str:
+    """Render a JSON amount back into an input value (int when whole)."""
+    try:
+        a = float(amt)
+    except (TypeError, ValueError):
         return ""
+    return f"{int(a)}" if a == int(a) else f"{a}"
+
+
+def _split_schedule(schedule_json: Optional[str]) -> tuple[dict, str]:
+    """Split a stored schedule into the 3 standard rows + freeform extras.
+
+    Returns (std, extra_text) where std maps advance/eventday/delivery to
+    {"date", "amount"} strings ready for the form inputs.
+    """
+    std = {k: {"date": "", "amount": ""} for k in _STD_LABELS}
+    if not schedule_json:
+        return std, ""
     try:
         items = json.loads(schedule_json)
     except (ValueError, TypeError):
-        return ""
-    lines = []
+        return std, ""
+    extra_lines = []
     for it in items:
-        amt = it.get("amount", 0)
-        amt_str = f"{int(amt)}" if amt == int(amt) else f"{amt}"
-        label = it.get("label", "")
-        if label:
-            lines.append(f"{it.get('date','')} : {amt_str} : {label}")
+        label = (it.get("label") or "").strip()
+        key = _STD_LABEL_KEYS.get(label.lower())
+        amt = _amount_str(it.get("amount", 0))
+        if key and not std[key]["date"] and not std[key]["amount"]:
+            std[key] = {"date": it.get("date", ""), "amount": amt}
+        elif label:
+            extra_lines.append(f"{it.get('date','')} : {amt} : {label}")
         else:
-            lines.append(f"{it.get('date','')} : {amt_str}")
-    return "\n".join(lines)
+            extra_lines.append(f"{it.get('date','')} : {amt}")
+    return std, "\n".join(extra_lines)
+
+
+def _compose_schedule(rows: list[tuple[str, str, str]],
+                      extra_text: str) -> Optional[str]:
+    """Build schedule JSON from the 3 standard (date, amount, label) rows plus
+    any freeform extra installments. A row needs both a date and an amount to
+    count. Returns JSON string or None when nothing valid was supplied."""
+    items = []
+    for d, a, label in rows:
+        d = (d or "").strip()
+        a = (a or "").strip()
+        if not d or not a:
+            continue
+        try:
+            dt = date_cls.fromisoformat(d)
+        except ValueError:
+            continue
+        try:
+            amt = float(a.replace(",", ""))
+        except ValueError:
+            continue
+        items.append({"date": dt.isoformat(), "amount": amt, "label": label})
+    extra_json = _parse_schedule(extra_text)
+    if extra_json:
+        try:
+            items.extend(json.loads(extra_json))
+        except (ValueError, TypeError):
+            pass
+    if not items:
+        return None
+    items.sort(key=lambda x: x["date"])
+    return json.dumps(items, ensure_ascii=False)
 
 
 def _annotate_schedule(schedule_json: Optional[str], payments) -> list[dict]:
@@ -232,9 +299,9 @@ def event_detail(event_id: int, request: Request, db: SheetDB = Depends(get_db))
     estimated_total = round(sum(e.amount for e in estimates), 2)
     projected_profit = round(ep.event.quoted_amount - (ep.expense + estimated_total), 2)
 
-    # Phase 1.2: payment schedule rendering
+    # Phase 1.2: payment schedule rendering (read-only table + structured editor)
     schedule_rows = _annotate_schedule(ep.event.payment_due_dates, ep.event.payments)
-    schedule_text = _schedule_to_text(ep.event.payment_due_dates)
+    std_schedule, schedule_extra_text = _split_schedule(ep.event.payment_due_dates)
 
     clients = db.list_clients()
     clients_map = {c.id: c for c in clients}
@@ -260,7 +327,8 @@ def event_detail(event_id: int, request: Request, db: SheetDB = Depends(get_db))
             "lead_sources": list(LeadSource),
             "cities": INDIAN_CITIES,
             "schedule_rows": schedule_rows,
-            "schedule_text": schedule_text,
+            "std_schedule": std_schedule,
+            "schedule_extra_text": schedule_extra_text,
             "clients": clients,
             "linked_client": linked_client,
             "milestones": milestones,
@@ -287,16 +355,30 @@ def update_event(
     event_type: str = Form(""),
     location: str = Form(""),
     referral_source: str = Form(""),
-    payment_schedule: str = Form(""),
-    delivery_status: str = Form(""),
+    adv_date: str = Form(""),
+    adv_amount: str = Form(""),
+    eventday_date: str = Form(""),
+    eventday_amount: str = Form(""),
+    delivery_date: str = Form(""),
+    delivery_amount: str = Form(""),
+    payment_schedule_extra: str = Form(""),
     db: SheetDB = Depends(get_db),
 ):
     error = _validate_event_input(status, quoted_amount, event_date)
     if error:
         request.session["flash"] = error
         return RedirectResponse(url=f"/events/{event_id}", status_code=303)
-    schedule_json = _parse_schedule(payment_schedule)
+    schedule_json = _compose_schedule(
+        [
+            (adv_date, adv_amount, SCHEDULE_ADVANCE),
+            (eventday_date, eventday_amount, SCHEDULE_EVENTDAY),
+            (delivery_date, delivery_amount, SCHEDULE_DELIVERY),
+        ],
+        payment_schedule_extra,
+    )
     cid = int(client_id) if client_id.strip() else None
+    # delivery_status is no longer set here — it is derived from milestones
+    # (db.sync_delivery_status), so the manual stage control was removed.
     ev = db.update_event(
         event_id,
         name=name.strip(),
@@ -310,7 +392,6 @@ def update_event(
         location=location.strip() or None,
         referral_source=referral_source.strip() or None,
         payment_due_dates=schedule_json,
-        delivery_status=delivery_status.strip() or None,
     )
     if ev is None:
         raise HTTPException(status_code=404)

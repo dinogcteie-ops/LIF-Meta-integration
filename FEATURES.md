@@ -30,7 +30,7 @@ _Last updated: 2026-06-12 (delivery dashboard + milestones, pending end-of-month
 | **Pending-from-clients split** by event status (completed / ongoing / booked) on the dashboard card | 🔄 | `BankSummary.pending_*` in `reports.py` |
 | **Seasonal booking pattern** shows both total and average revenue per month | 🔄 | `seasonal_analysis`; `dashboard.html` |
 | Settings (studio branding, finance defaults, recurring expenses) + audit log | ✅ | `app/routes/settings.py` |
-| Calendar, quick-add, export, workshop | ✅ | `app/routes/{calendar,quick,export,workshop}.py` |
+| Calendar, quick-add, export | ✅ | `app/routes/{calendar,quick,export}.py` (workshop board removed — delivery is tracked via milestones / the Delivery dashboard) |
 
 ## Events
 

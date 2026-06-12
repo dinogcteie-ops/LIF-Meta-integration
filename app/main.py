@@ -11,7 +11,7 @@ from app.config import BASE_DIR, get_settings
 from app.routes import (
     auth, calendar, categories, clients, dashboard, delivery, events, expenses, export,
     jobs, leads, meta, payables, payees, portal, quick, receivables, reports,
-    settings, workshop,
+    settings,
 )
 from app.templating import templates
 
@@ -83,7 +83,6 @@ app.include_router(categories.router)
 app.include_router(reports.router)
 app.include_router(export.router)
 app.include_router(leads.router)
-app.include_router(workshop.router)
 app.include_router(settings.router)
 app.include_router(quick.router)
 app.include_router(portal.router)

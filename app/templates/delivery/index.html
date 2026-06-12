@@ -39,12 +39,20 @@
 <!-- Filters -->
 <form method="get" action="/delivery" class="row g-2 mb-4">
   <div class="col-sm-4">
-    <input type="text" name="phase" class="form-control form-control-sm"
-           placeholder="Phase name…" value="{{ filters.phase }}">
+    <select name="phase" class="form-select form-select-sm">
+      <option value="">All phases</option>
+      {% for p in phase_options %}
+        <option value="{{ p }}" {{ 'selected' if filters.phase == p else '' }}>{{ p }}</option>
+      {% endfor %}
+    </select>
   </div>
   <div class="col-sm-4">
-    <input type="text" name="event_type" class="form-control form-control-sm"
-           placeholder="Event type…" value="{{ filters.event_type }}">
+    <select name="event_type" class="form-select form-select-sm">
+      <option value="">All event types</option>
+      {% for t in event_types %}
+        <option value="{{ t }}" {{ 'selected' if filters.event_type == t else '' }}>{{ t }}</option>
+      {% endfor %}
+    </select>
   </div>
   <div class="col-auto">
     <button type="submit" class="btn btn-dark btn-sm">Filter</button>
@@ -53,6 +61,38 @@
     {% endif %}
   </div>
 </form>
+
+<!-- Project timeline (Gantt-style swimlanes) -->
+{% if cards %}
+<div class="card lif-card mb-4">
+  <div class="section-header d-flex justify-content-between align-items-center">
+    <h5 class="section-title mb-0"><i class="bi bi-bar-chart-steps me-2"></i>Project timeline</h5>
+    <div class="gantt-legend small text-muted">
+      <span class="gantt-key"><span class="gantt-swatch done"></span>Done</span>
+      <span class="gantt-key"><span class="gantt-swatch current"></span>In progress</span>
+      <span class="gantt-key"><span class="gantt-swatch overdue"></span>Overdue</span>
+      <span class="gantt-key"><span class="gantt-swatch upcoming"></span>Upcoming</span>
+    </div>
+  </div>
+  <div class="card-body">
+    {% for card in cards %}
+    <div class="gantt-row">
+      <a href="/events/{{ card.event_id }}" class="gantt-label text-decoration-none" title="{{ card.event_name }}">
+        {{ card.event_name }}
+      </a>
+      <div class="gantt-track">
+        {% for ph in card.phases %}
+          <div class="gantt-seg {{ ph.state }}"
+               title="{{ ph.name }} — {{ ph.state }}{% if ph.due %} (due {{ ph.due }}){% endif %}">
+            <span class="gantt-seg-label">{{ ph.name }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
 
 {% if cards %}
 <div class="row g-3">

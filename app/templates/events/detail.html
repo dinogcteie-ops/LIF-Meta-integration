@@ -330,12 +330,22 @@
 </div>
 
 <!-- Milestones card -->
-{% if milestones %}
 <div class="card lif-card mb-4">
   <div class="section-header">
     <h5 class="section-title"><i class="bi bi-list-check me-2"></i>Milestones</h5>
   </div>
   <div class="card-body">
+    {% if not milestones %}
+    <div class="empty-state py-3 mb-3">
+      <p class="text-muted mb-2">No delivery milestones yet for this event.</p>
+      <form method="post" action="/events/{{ event.id }}/milestones/seed" class="d-inline">
+        <button type="submit" class="btn btn-dark btn-sm">
+          <i class="bi bi-magic me-1"></i>Add default phases
+        </button>
+      </form>
+      <span class="text-muted small ms-1">or add a phase manually below.</span>
+    </div>
+    {% endif %}
     <ol class="list-group list-group-numbered mb-3">
       {% for m in milestones %}
       <li class="list-group-item d-flex align-items-center gap-2 px-3 py-2
@@ -387,7 +397,6 @@
     </form>
   </div>
 </div>
-{% endif %}
 
 <!-- Delivery stepper (only shown when delivery_status is set) -->
 {% if event.delivery_status %}

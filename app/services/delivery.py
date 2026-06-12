@@ -55,6 +55,20 @@ def phases_for_event_type(event_type: Optional[str]) -> list[str]:
     return PHASE_TEMPLATES.get(key, _DEFAULT_PHASES)
 
 
+def all_phase_names() -> list[str]:
+    """Ordered union of every phase across all templates — for filter dropdowns.
+
+    Preserves first-seen order (so the canonical pipeline reads naturally)
+    rather than alphabetizing.
+    """
+    seen: list[str] = []
+    for phases in PHASE_TEMPLATES.values():
+        for p in phases:
+            if p not in seen:
+                seen.append(p)
+    return seen
+
+
 # ─── Status mapping ──────────────────────────────────────────────────────────
 
 # Map phase name → delivery_status value it contributes when completed.
@@ -113,6 +127,9 @@ class DeliveryCard:
     next_due: Optional[object]          # next incomplete milestone with a due date
     overdue: list = field(default_factory=list)  # past-due incomplete milestones
     pending_from_client: float = 0.0
+    # Ordered phase segments for the timeline/Gantt strip. Each item is
+    # {"name": str, "state": "done"|"current"|"overdue"|"upcoming", "due": date|None}.
+    phases: list = field(default_factory=list)
 
     @property
     def progress_pct(self) -> int:
@@ -154,6 +171,22 @@ def build_delivery_card(
         if m.due_date is not None and m.due_date < today
     ]
 
+    # Timeline segments in phase order. The first incomplete phase is "current";
+    # any incomplete phase past its due date is "overdue".
+    ordered = sorted(milestones, key=lambda m: m.position)
+    first_incomplete_id = next((m.id for m in ordered if m.completed_at is None), None)
+    phases = []
+    for m in ordered:
+        if m.completed_at is not None:
+            state = "done"
+        elif m.due_date is not None and m.due_date < today:
+            state = "overdue"
+        elif m.id == first_incomplete_id:
+            state = "current"
+        else:
+            state = "upcoming"
+        phases.append({"name": m.phase, "state": state, "due": m.due_date})
+
     return DeliveryCard(
         event_id=event_id,
         event_name=event_name,
@@ -167,4 +200,5 @@ def build_delivery_card(
         next_due=next_due,
         overdue=overdue,
         pending_from_client=pending_from_client,
+        phases=phases,
     )

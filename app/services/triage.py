@@ -13,6 +13,7 @@ cold-start classifier, not the permanent one.
 from __future__ import annotations
 
 import logging
+from datetime import date
 
 from app.domain import Lead
 from app.services import llm
@@ -22,15 +23,33 @@ log = logging.getLogger("uvicorn.error")
 
 TRIAGE_CLASSES = ("hot", "warm", "low_intent", "spam")
 
+# Triage hinges on two signals: a real LOCATION (city/venue) and a usable EVENT
+# DATE. The studio's rule of thumb:
+#   • both present & plausible            → hot   (worth calling today)
+#   • exactly one present, the other blank → warm  (genuine, needs a follow-up)
+#   • neither present, but still a real    → low_intent (browsing / price-shopping)
+#     human enquiry
+#   • the location or date field holds a    → spam
+#     name, gibberish, or junk
 _SYSTEM = (
     "You triage incoming leads for an Indian wedding/event photography studio. "
-    "Classify each lead as exactly one of: hot (clear event, near-term date or "
-    "stated budget, reachable contact — worth calling today), warm (genuine "
-    "interest but vague on date/budget), low_intent (price-shopping, no date, "
-    "minimal info, or wants something the studio doesn't do), spam (gibberish, "
-    "promotional/bot text, fake contact details). "
-    "Budget context: amounts are in Indian rupees; serious wedding budgets "
-    "start around ₹50,000+. A missing budget is normal, not spam. "
+    "Two fields decide the verdict: the event LOCATION (a real city, town, or "
+    "venue) and the event DATE (a specific or clearly-described date — an exact "
+    "day, or a month/season/year the client actually named). Classify each lead "
+    "as exactly one of:\n"
+    "  hot  — BOTH a real location AND a properly described event date are "
+    "present and plausible.\n"
+    "  warm — exactly ONE of location or date is present; the other is blank or "
+    "too vague to act on.\n"
+    "  low_intent — NEITHER location nor date is given, but the enquiry still "
+    "reads like a genuine human (price-shopping, minimal info, or wants "
+    "something the studio doesn't do).\n"
+    "  spam — the location or date field (or the name) contains a person's name "
+    "where a place should be, gibberish, random characters, bot/promotional "
+    "text, or obviously fake contact details.\n"
+    "A real location or date mentioned anywhere in the message counts even if "
+    "the dedicated field is blank. A missing budget is normal — never spam on "
+    "that alone. "
     'Reply with ONLY a JSON object: {"triage": "<class>", "reason": "<one short sentence>"}'
 )
 
@@ -40,11 +59,12 @@ def _lead_prompt(lead: Lead) -> str:
     phone_note = ("valid 10-digit mobile" if len(phone) == 10
                   else ("missing" if not lead.contact.strip() else "malformed/short"))
     parts = [
+        f"Today is {date.today().isoformat()} (judge whether the date is plausible).",
         f"Name: {lead.client_name or '(none)'}",
         f"Event type: {lead.event_type or '(not stated)'}",
-        f"Tentative date: {lead.tentative_date.isoformat() if lead.tentative_date else '(not stated)'}",
+        f"Event date: {lead.tentative_date.isoformat() if lead.tentative_date else '(not stated)'}",
+        f"Location / City: {lead.city or '(not stated)'}",
         f"Budget: {lead.budget_range or '(not stated)'}",
-        f"City: {lead.city or '(not stated)'}",
         f"Source: {lead.source or '(unknown)'}",
         f"Phone check: {phone_note}",
         f"Message/notes: {(lead.notes or '(none)')[:500]}",

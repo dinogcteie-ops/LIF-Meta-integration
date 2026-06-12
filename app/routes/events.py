@@ -358,9 +358,25 @@ def delete_payment(event_id: int, payment_id: int, db: SheetDB = Depends(get_db)
     return RedirectResponse(url=f"/events/{event_id}", status_code=303)
 
 
+@router.post("/events/{event_id}/milestones/seed")
+def seed_event_milestones(event_id: int, request: Request, db: SheetDB = Depends(get_db)):
+    """Populate the default phase milestones for an event that has none yet.
+
+    For legacy events created before milestones existed (the add-form is always
+    shown, but a one-click default pipeline is friendlier).
+    """
+    ev = db.get_event(event_id)
+    if ev is None:
+        raise HTTPException(status_code=404)
+    db.seed_milestones(event_id, ev.event_type)
+    db.sync_delivery_status(event_id)
+    return RedirectResponse(url=f"/events/{event_id}", status_code=303)
+
+
 @router.post("/events/{event_id}/milestones")
 def add_milestone(
     event_id: int,
+    request: Request,
     phase: str = Form(...),
     due_date: str = Form(""),
     notes: str = Form(""),
@@ -368,6 +384,9 @@ def add_milestone(
 ):
     if db.get_event(event_id) is None:
         raise HTTPException(status_code=404)
+    if not phase.strip():
+        request.session["flash"] = "Give the milestone a phase name."
+        return RedirectResponse(url=f"/events/{event_id}", status_code=303)
     milestones = db.list_milestones(event_id=event_id)
     position = len(milestones)
     db.create_milestone(

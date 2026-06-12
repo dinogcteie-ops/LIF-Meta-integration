@@ -1766,6 +1766,60 @@ a:hover {
 }
 .delivery-step-connector.done { background: var(--lif-green); }
 
+/* ── Delivery timeline (Gantt-style swimlanes) ───────────────────────────── */
+.gantt-legend { display: flex; flex-wrap: wrap; gap: .9rem; }
+.gantt-key { display: inline-flex; align-items: center; gap: .35rem; }
+.gantt-swatch {
+  width: 12px; height: 12px; border-radius: 3px; display: inline-block;
+  border: 1px solid var(--lif-border);
+}
+.gantt-swatch.done     { background: var(--lif-green); border-color: var(--lif-green); }
+.gantt-swatch.current  { background: var(--lif-gold);  border-color: var(--lif-gold); }
+.gantt-swatch.overdue  { background: var(--lif-red);   border-color: var(--lif-red); }
+.gantt-swatch.upcoming { background: var(--lif-surface); }
+
+.gantt-row {
+  display: flex; align-items: stretch; gap: .75rem;
+  padding: .3rem 0;
+}
+.gantt-row + .gantt-row { border-top: 1px solid var(--lif-border); }
+.gantt-label {
+  flex: 0 0 150px; width: 150px;
+  align-self: center;
+  font-size: .82rem; font-weight: 600;
+  color: var(--lif-ink, inherit);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.gantt-track {
+  flex: 1 1 auto;
+  display: flex; gap: 3px;
+  min-width: 0;
+}
+.gantt-seg {
+  flex: 1 1 0; min-width: 0;
+  height: 26px; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 .35rem;
+  border: 1px solid var(--lif-border);
+  background: var(--lif-surface);
+}
+.gantt-seg-label {
+  font-size: .66rem; line-height: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  color: var(--lif-muted);
+}
+.gantt-seg.done     { background: rgba(21, 128, 61, .16);  border-color: var(--lif-green); }
+.gantt-seg.done     .gantt-seg-label { color: var(--lif-green); }
+.gantt-seg.current  { background: rgba(197, 162, 60, .22); border-color: var(--lif-gold); }
+.gantt-seg.current  .gantt-seg-label { color: var(--lif-gold-dark); font-weight: 600; }
+.gantt-seg.overdue  { background: rgba(220, 38, 38, .16);  border-color: var(--lif-red); }
+.gantt-seg.overdue  .gantt-seg-label { color: var(--lif-red); font-weight: 600; }
+
+@media (max-width: 575px) {
+  .gantt-label { flex-basis: 90px; width: 90px; }
+  .gantt-seg-label { display: none; }
+}
+
 /* ── Mobile polish ───────────────────────────────────────────────────────── */
 
 /* KPI grid: 2-column on tablets */

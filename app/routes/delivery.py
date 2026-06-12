@@ -8,9 +8,9 @@ from datetime import date
 from fastapi import APIRouter, Depends, Request
 
 from app.database import get_db, SheetDB
-from app.enums import EventStatus
+from app.enums import EventStatus, EventType
 from app.rbac import require
-from app.services.delivery import build_delivery_card
+from app.services.delivery import all_phase_names, build_delivery_card
 from app.services.reports import event_profits
 from app.templating import templates
 
@@ -81,5 +81,7 @@ def delivery_dashboard(
             "overdue_count": overdue_count,
             "delivered_pending": delivered_pending,
             "filters": {"phase": phase, "event_type": event_type},
+            "phase_options": all_phase_names(),
+            "event_types": [e.value for e in EventType],
         },
     )

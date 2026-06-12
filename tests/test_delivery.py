@@ -19,7 +19,11 @@ from fastapi.testclient import TestClient
 
 from app.domain import Milestone
 from app.services.db import Database
-from app.services.delivery import delivery_status_from_milestones
+from app.services.delivery import (
+    all_phase_names,
+    build_delivery_card,
+    delivery_status_from_milestones,
+)
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -160,6 +164,68 @@ def test_overdue_milestone_appears_in_delivery(client: TestClient, db: Database)
     r = client.get("/delivery")
     assert r.status_code == 200
     assert "Overdue" in r.text
+
+
+# ─── 11. all_phase_names: ordered union for filter dropdown ───────────────────
+
+def test_all_phase_names_ordered_union():
+    names = all_phase_names()
+    # Canonical pipeline order, deduped across templates
+    assert names[0] == "Shoot"
+    assert "Final delivery" in names
+    assert "Client review" in names   # only in the long template
+    assert len(names) == len(set(names))   # no duplicates
+
+
+# ─── 12. build_delivery_card: timeline phase states ──────────────────────────
+
+def test_delivery_card_phase_states():
+    today = date.today()
+    ms = [
+        _make_milestone("Shoot", 0, completed=True),
+        _make_milestone("Culling", 1, completed=False),     # first incomplete → current
+        _make_milestone("Editing", 2, completed=False),     # upcoming
+        _make_milestone("Final delivery", 3, completed=False),
+    ]
+    # Make "Editing" overdue
+    ms[2].due_date = today - timedelta(days=2)
+
+    card = build_delivery_card(
+        event_id=1, event_name="X", client_name=None, event_date=today,
+        event_type="Wedding", delivery_status=None, milestones=ms, today=today,
+    )
+    states = {p["name"]: p["state"] for p in card.phases}
+    assert states["Shoot"] == "done"
+    assert states["Culling"] == "current"
+    assert states["Editing"] == "overdue"
+    assert states["Final delivery"] == "upcoming"
+
+
+# ─── 13. Seed route populates milestones for a legacy (empty) event ──────────
+
+def test_seed_route_populates_milestones(client: TestClient, db: Database):
+    ev = db.create_event(name="Legacy Event", event_type="Wedding")
+    # Simulate a legacy event with no milestones
+    for m in db.list_milestones(event_id=ev.id):
+        db.delete_milestone(m.id)
+    assert db.list_milestones(event_id=ev.id) == []
+
+    r = client.post(f"/events/{ev.id}/milestones/seed", follow_redirects=False)
+    assert r.status_code == 303
+    assert len(db.list_milestones(event_id=ev.id)) == 6
+
+
+# ─── 14. Milestone add-form is shown even when an event has no milestones ─────
+
+def test_milestone_form_visible_when_empty(client: TestClient, db: Database):
+    ev = db.create_event(name="No Milestones Yet")
+    for m in db.list_milestones(event_id=ev.id):
+        db.delete_milestone(m.id)
+    r = client.get(f"/events/{ev.id}")
+    assert r.status_code == 200
+    # The add-milestone form action is present even with zero milestones
+    assert f"/events/{ev.id}/milestones" in r.text
+    assert "Add default phases" in r.text
 
 
 # ─── 10. Portal renders milestone phase names when milestones exist ───────────

@@ -521,6 +521,25 @@ def _actions_block(ins: ReportInsights) -> str:
 """
 
 
+def _ai_block(text: str) -> str:
+    """The LLM narrative, escaped and lightly formatted. '' when absent."""
+    if not text:
+        return ""
+    esc = (text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+    paragraphs = "".join(
+        f"<p style='margin:0 0 9px 0;font-size:13.5px;line-height:1.55;color:{_BODY}'>{p}</p>"
+        for p in esc.split("\n\n") if p.strip()
+    ) or f"<p style='margin:0;font-size:13.5px;color:{_BODY}'>{esc}</p>"
+    paragraphs = paragraphs.replace("\n", "<br>")
+    return f"""
+<h2 style="font-size:13px;font-weight:800;letter-spacing:.06em;color:{_MUTED};
+           text-transform:uppercase;margin:22px 0 10px 0">AI analysis — ads &amp; financials</h2>
+<div style="background:#fafafa;border:1px solid {_GRID};border-radius:6px;padding:14px 16px">
+{paragraphs}
+</div>
+"""
+
+
 def _exhibit(num: int, takeaway: str, cid: str, alt: str) -> str:
     return (
         f'<div style="margin:24px 0 6px 0">'
@@ -542,8 +561,13 @@ def build_report_email(
     label_curr: str,
     label_prev: str,
     period_str: str,
+    ai_analysis: str | None = None,
 ) -> tuple[str, str, dict[str, bytes], str]:
     """Generate insights + charts + HTML.
+
+    ``ai_analysis`` (optional LLM narrative from app.services.ad_analysis) is
+    rendered above the rule-based findings; when None the email is identical
+    to the pre-AI version.
 
     Returns (subject, html, {cid: png_bytes}, plain_text_fallback).
     """
@@ -607,6 +631,7 @@ def build_report_email(
   </p>
 
   {_banner(ins)}
+  {_ai_block(ai_analysis or "")}
   {_findings_block(ins)}
   {_actions_block(ins)}
 

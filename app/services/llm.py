@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from datetime import date, timedelta
 
 import requests
@@ -27,6 +28,9 @@ from app.config import get_settings
 log = logging.getLogger("uvicorn.error")
 
 _TIMEOUT = 30  # seconds; cron-driven callers can afford it, page callers are async-ish
+# Transient server-side blips worth a quick retry (503 = model overloaded).
+_RETRY_STATUSES = {503}
+_MAX_ATTEMPTS = 3
 
 
 class LLMError(Exception):
@@ -62,32 +66,63 @@ def calls_used_today(db) -> int:
 
 # ─── Provider transports ─────────────────────────────────────────────────────
 
-def _complete_gemini(prompt: str, system: str, max_tokens: int) -> str:
+def _complete_gemini(prompt: str, system: str, max_tokens: int,
+                     json_mode: bool = False) -> str:
     s = get_settings()
     if not s.gemini_api_key:
         raise LLMError("GEMINI_API_KEY is not set")
     url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
            f"{s.gemini_model}:generateContent")
+    gen_config: dict = {"maxOutputTokens": max_tokens, "temperature": 0.2}
+    if json_mode:
+        # Force clean, parseable JSON (no prose, no ``` fences).
+        gen_config["responseMimeType"] = "application/json"
+    if "2.5" in s.gemini_model:
+        # 2.5 flash models "think" by default, which silently consumes the
+        # output-token budget and truncates the answer. Disable it — triage and
+        # drafts don't need chain-of-thought.
+        gen_config["thinkingConfig"] = {"thinkingBudget": 0}
     body: dict = {
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-        "generationConfig": {"maxOutputTokens": max_tokens, "temperature": 0.2},
+        "generationConfig": gen_config,
     }
     if system:
         body["systemInstruction"] = {"parts": [{"text": system}]}
-    try:
-        resp = requests.post(url, json=body, timeout=_TIMEOUT,
-                             headers={"x-goog-api-key": s.gemini_api_key})
-    except requests.RequestException as e:
-        raise LLMError(f"Gemini request failed: {e}") from e
+    headers = {"x-goog-api-key": s.gemini_api_key}
+    resp = None
+    for attempt in range(1, _MAX_ATTEMPTS + 1):
+        try:
+            resp = requests.post(url, json=body, timeout=_TIMEOUT, headers=headers)
+        except requests.RequestException as e:
+            if attempt == _MAX_ATTEMPTS:
+                raise LLMError(f"Gemini request failed: {e}") from e
+            time.sleep(1.5 * attempt)
+            continue
+        if resp.status_code in _RETRY_STATUSES and attempt < _MAX_ATTEMPTS:
+            time.sleep(1.5 * attempt)   # transient (e.g. 503 overloaded) — retry
+            continue
+        break
     if resp.status_code != 200:
         raise LLMError(f"Gemini HTTP {resp.status_code}: {resp.text[:300]}")
     try:
-        return resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+        cand = resp.json()["candidates"][0]
     except (KeyError, IndexError, TypeError, ValueError) as e:
         raise LLMError(f"Gemini response malformed: {resp.text[:300]}") from e
+    # A truncated answer (MAX_TOKENS) yields invalid JSON downstream — surface a
+    # clear, actionable error instead of a confusing parse failure.
+    if cand.get("finishReason") == "MAX_TOKENS":
+        raise LLMError(f"Gemini hit the {max_tokens}-token limit before finishing "
+                       "— raise max_tokens.")
+    try:
+        return cand["content"]["parts"][0]["text"]
+    except (KeyError, IndexError, TypeError) as e:
+        raise LLMError(f"Gemini response had no text: {resp.text[:300]}") from e
 
 
-def _complete_anthropic(prompt: str, system: str, max_tokens: int) -> str:
+def _complete_anthropic(prompt: str, system: str, max_tokens: int,
+                        json_mode: bool = False) -> str:
+    # Claude follows the "reply with JSON only" instruction reliably; complete_json
+    # strips any ``` fences. json_mode is accepted for a uniform signature.
     s = get_settings()
     if not s.anthropic_api_key:
         raise LLMError("ANTHROPIC_API_KEY is not set")
@@ -122,18 +157,20 @@ def is_configured() -> bool:
                 else s.gemini_api_key)
 
 
-def complete(db, prompt: str, system: str = "", max_tokens: int = 1024) -> str:
+def complete(db, prompt: str, system: str = "", max_tokens: int = 1024,
+             json_mode: bool = False) -> str:
     """One LLM completion. Counts against the daily budget. Raises LLMError."""
     _check_and_count(db)
     s = get_settings()
     if s.llm_provider == "anthropic":
-        return _complete_anthropic(prompt, system, max_tokens)
-    return _complete_gemini(prompt, system, max_tokens)
+        return _complete_anthropic(prompt, system, max_tokens, json_mode)
+    return _complete_gemini(prompt, system, max_tokens, json_mode)
 
 
 def complete_json(db, prompt: str, system: str = "", max_tokens: int = 1024) -> dict:
     """``complete`` + strict-ish JSON parsing (tolerates ``` fences)."""
-    text = complete(db, prompt, system=system, max_tokens=max_tokens).strip()
+    text = complete(db, prompt, system=system, max_tokens=max_tokens,
+                    json_mode=True).strip()
     if text.startswith("```"):
         text = text.strip("`")
         if text.startswith("json"):

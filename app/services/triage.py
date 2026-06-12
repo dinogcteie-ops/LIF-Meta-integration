@@ -54,7 +54,7 @@ def _lead_prompt(lead: Lead) -> str:
 
 def triage_lead(db, lead: Lead) -> str | None:
     """Classify one lead and persist the verdict. Returns the class or None."""
-    out = llm.complete_json(db, _lead_prompt(lead), system=_SYSTEM, max_tokens=200)
+    out = llm.complete_json(db, _lead_prompt(lead), system=_SYSTEM, max_tokens=400)
     verdict = str(out.get("triage", "")).strip().lower()
     if verdict not in TRIAGE_CLASSES:
         raise llm.LLMError(f"Unknown triage class from LLM: {verdict!r}")

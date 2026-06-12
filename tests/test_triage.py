@@ -36,8 +36,9 @@ def test_triage_lead_rejects_unknown_class(db, monkeypatch):
 
 # ─── triage_pending_leads (batch, cron path) ─────────────────────────────────
 
-def test_pending_skips_when_unconfigured(db):
-    # Test env has no API keys → must skip cleanly, never raise.
+def test_pending_skips_when_unconfigured(db, monkeypatch):
+    # Force the no-key path explicitly (a local .env must not change the result).
+    monkeypatch.setattr(llm, "is_configured", lambda: False)
     out = triage.triage_pending_leads(db)
     assert out["skipped"] == "llm not configured"
 
@@ -77,14 +78,19 @@ def test_daily_budget_blocks_calls(db):
     db.set_settings({key: ""})   # cleanup for other tests
 
 
-def test_budget_counter_increments(db):
+def test_budget_counter_increments(db, monkeypatch):
     from datetime import date
+
+    def _raise(*a, **k):
+        raise llm.LLMError("no network in tests")
+    # Force the provider call to fail so we test counting independent of any key.
+    monkeypatch.setattr(llm, "_complete_gemini", _raise)
+    monkeypatch.setattr(llm, "_complete_anthropic", _raise)
     key = f"llm_calls_{date.today().isoformat()}"
     db.set_settings({key: "0"})
-    # No API key in test env → complete raises AFTER counting.
     with pytest.raises(llm.LLMError):
         llm.complete(db, "hi")
-    assert int(db.get_settings_dict().get(key) or 0) == 1
+    assert int(db.get_settings_dict().get(key) or 0) == 1   # counted before the call
     db.set_settings({key: ""})
 
 

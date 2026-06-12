@@ -80,7 +80,8 @@ def test_fallback_on_llm_error(db, monkeypatch):
     assert out is None
 
 
-def test_unconfigured_returns_none(db):
+def test_unconfigured_returns_none(db, monkeypatch):
+    monkeypatch.setattr(llm, "is_configured", lambda: False)
     start, end = default_period()
     assert ad_analysis.analysis_or_fallback(
         db, start, end, *previous_period(start, end), "cur", "prev") is None

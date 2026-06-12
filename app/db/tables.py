@@ -166,6 +166,18 @@ class CommLogRow(Base):
     created_at: Mapped[str] = mapped_column(String(64), default="")
 
 
+class MilestoneRow(Base):
+    __tablename__ = "event_milestones"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    event_id: Mapped[int] = mapped_column(Integer, index=True)
+    phase: Mapped[str] = mapped_column(String(128))
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    due_date: Mapped["Date | None"] = mapped_column(Date, nullable=True)
+    completed_at: Mapped["Date | None"] = mapped_column(Date, nullable=True)
+    assignee_payee_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    notes: Mapped[str] = mapped_column(Text, default="")
+
+
 class MetaMetricRow(Base):
     __tablename__ = "meta_metrics"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

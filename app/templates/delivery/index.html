@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Delivery{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <h1 class="page-title">Delivery</h1>
+    <p class="page-subtitle">Post-production pipeline — active projects</p>
+  </div>
+</header>
+
+<!-- Summary strip -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-4">
+    <div class="card stat-card h-100">
+      <div class="card-body">
+        <div class="stat-label">Active projects</div>
+        <div class="stat-value">{{ total_active }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="card stat-card h-100" style="--accent: {{ 'var(--lif-red)' if overdue_count else 'var(--lif-green)' }};">
+      <div class="card-body">
+        <div class="stat-label">Overdue milestones</div>
+        <div class="stat-value {{ 'text-danger' if overdue_count else 'text-success' }}">{{ overdue_count }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="card stat-card h-100" style="--accent: {{ 'var(--lif-gold)' if delivered_pending else 'var(--lif-green)' }};">
+      <div class="card-body">
+        <div class="stat-label">Delivered, balance pending</div>
+        <div class="stat-value {{ 'text-warning' if delivered_pending else 'text-success' }}">{{ delivered_pending }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Filters -->
+<form method="get" action="/delivery" class="row g-2 mb-4">
+  <div class="col-sm-4">
+    <input type="text" name="phase" class="form-control form-control-sm"
+           placeholder="Phase name…" value="{{ filters.phase }}">
+  </div>
+  <div class="col-sm-4">
+    <input type="text" name="event_type" class="form-control form-control-sm"
+           placeholder="Event type…" value="{{ filters.event_type }}">
+  </div>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-dark btn-sm">Filter</button>
+    {% if filters.phase or filters.event_type %}
+      <a href="/delivery" class="btn btn-outline-secondary btn-sm ms-1">Clear</a>
+    {% endif %}
+  </div>
+</form>
+
+{% if cards %}
+<div class="row g-3">
+  {% for card in cards %}
+  <div class="col-12 col-lg-6">
+    <div class="card lif-card h-100 {% if card.overdue %}border-danger{% endif %}">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div>
+            <a href="/events/{{ card.event_id }}" class="fw-semibold text-decoration-none">{{ card.event_name }}</a>
+            {% if card.client_name %}
+              <span class="text-muted small ms-2">{{ card.client_name }}</span>
+            {% endif %}
+          </div>
+          <div class="text-end">
+            {% if card.delivery_status %}
+              <span class="badge bg-secondary">{{ card.delivery_status | replace('_', ' ') | title }}</span>
+            {% else %}
+              <span class="badge bg-light text-dark border">Not started</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="text-muted small mb-2">
+          {% if card.event_type %}<span class="me-3"><i class="bi bi-camera2"></i> {{ card.event_type }}</span>{% endif %}
+          {% if card.event_date %}<span><i class="bi bi-calendar3"></i> {{ card.event_date }}</span>{% endif %}
+        </div>
+
+        <!-- Progress bar -->
+        <div class="mb-2">
+          <div class="d-flex justify-content-between small text-muted mb-1">
+            <span>{{ card.completed_milestones }} / {{ card.total_milestones }} phases</span>
+            <span>{{ card.progress_pct }}%</span>
+          </div>
+          <div class="progress" style="height: 6px;">
+            <div class="progress-bar {{ 'bg-success' if card.progress_pct == 100 else 'bg-primary' }}"
+                 role="progressbar" style="width: {{ card.progress_pct }}%"
+                 aria-valuenow="{{ card.progress_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+          </div>
+        </div>
+
+        {% if card.current_phase %}
+          <div class="small mb-1">
+            <span class="text-muted">Current phase:</span>
+            <strong>{{ card.current_phase }}</strong>
+          </div>
+        {% endif %}
+
+        {% if card.next_due %}
+          <div class="small mb-1">
+            <span class="text-muted">Next due:</span>
+            <strong>{{ card.next_due.phase }}</strong>
+            <span class="text-muted">— {{ card.next_due.due_date }}</span>
+          </div>
+        {% endif %}
+
+        {% if card.overdue %}
+          <div class="mt-2">
+            {% for m in card.overdue %}
+              <span class="badge bg-danger me-1">Overdue: {{ m.phase }} ({{ m.due_date }})</span>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        {% if card.pending_from_client > 0 %}
+          <div class="small text-warning mt-2">
+            <i class="bi bi-exclamation-triangle"></i>
+            Balance pending: {{ card.pending_from_client | money }}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+  <div class="empty-state">
+    <i class="bi bi-camera-reels" style="font-size:2rem; color:var(--lif-muted)"></i>
+    <p class="mt-2 text-muted">No active projects{% if filters.phase or filters.event_type %} matching those filters{% endif %}.</p>
+  </div>
+{% endif %}
+{% endblock %}

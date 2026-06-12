@@ -16,24 +16,46 @@
     </div>
 
     <div class="portal-body">
-      <!-- Delivery Timeline -->
+      <!-- Delivery Progress -->
       <h6 style="font-size:.8rem; font-weight:700; color:var(--lif-muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px">
         Delivery Progress
       </h6>
-      <div class="portal-timeline">
-        {% for stage in delivery_stages %}
-        <div class="timeline-step {% if loop.index0 < current_stage %}completed{% elif loop.index0 == current_stage %}current{% endif %}">
-          <div class="timeline-dot">
-            {% if loop.index0 < current_stage %}
-              <i class="bi bi-check"></i>
-            {% else %}
-              <i class="bi {{ stage.icon }}"></i>
+      {% if milestones %}
+        <!-- Milestone checklist (replaces static timeline when milestones are seeded) -->
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          {% for m in milestones %}
+          <div style="display:flex; align-items:center; gap:10px; font-size:.9rem;">
+            <span style="color:{{ 'var(--lif-green)' if m.completed_at else 'var(--lif-muted)' }}; font-size:1.1rem;">
+              <i class="bi {{ 'bi-check-circle-fill' if m.completed_at else 'bi-circle' }}"></i>
+            </span>
+            <span style="{{ 'text-decoration:line-through; color:var(--lif-muted)' if m.completed_at else '' }}">
+              {{ m.phase }}
+            </span>
+            {% if m.due_date and not m.completed_at %}
+              <span style="font-size:.75rem; color:var(--lif-muted);">expected {{ m.due_date }}</span>
+            {% elif m.completed_at %}
+              <span style="font-size:.75rem; color:var(--lif-green);">done {{ m.completed_at }}</span>
             {% endif %}
           </div>
-          <span class="timeline-label">{{ stage.label }}</span>
+          {% endfor %}
         </div>
-        {% endfor %}
-      </div>
+      {% else %}
+        <!-- Static 5-stage timeline (legacy — shown when no milestones seeded) -->
+        <div class="portal-timeline">
+          {% for stage in delivery_stages %}
+          <div class="timeline-step {% if loop.index0 < current_stage %}completed{% elif loop.index0 == current_stage %}current{% endif %}">
+            <div class="timeline-dot">
+              {% if loop.index0 < current_stage %}
+                <i class="bi bi-check"></i>
+              {% else %}
+                <i class="bi {{ stage.icon }}"></i>
+              {% endif %}
+            </div>
+            <span class="timeline-label">{{ stage.label }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      {% endif %}
 
       <!-- Payment Progress -->
       <h6 style="font-size:.8rem; font-weight:700; color:var(--lif-muted); text-transform:uppercase; letter-spacing:.05em; margin-top:32px; margin-bottom:8px">

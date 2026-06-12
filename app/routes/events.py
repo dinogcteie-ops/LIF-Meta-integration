@@ -192,6 +192,7 @@ def create_event(
         request.session["flash"] = error
         return RedirectResponse(url="/events/new", status_code=303)
     cid = int(client_id) if client_id.strip() else None
+    et = event_type.strip() or None
     ev = db.create_event(
         name=name.strip(),
         client_name=client_name.strip() or None,
@@ -200,10 +201,11 @@ def create_event(
         quoted_amount=quoted_amount,
         status=status,
         notes=notes.strip() or None,
-        event_type=event_type.strip() or None,
+        event_type=et,
         location=location.strip() or None,
         referral_source=referral_source.strip() or None,
     )
+    db.seed_milestones(ev.id, et)
     return RedirectResponse(url=f"/events/{ev.id}", status_code=303)
 
 
@@ -239,6 +241,10 @@ def event_detail(event_id: int, request: Request, db: SheetDB = Depends(get_db))
     # Resolve linked client for display
     linked_client = clients_map.get(ep.event.client_id) if ep.event.client_id else None
 
+    # Milestones for this event
+    milestones = db.list_milestones(event_id=event_id)
+    today = date_cls.today()
+
     return templates.TemplateResponse(
         request,
         "events/detail.html",
@@ -257,6 +263,8 @@ def event_detail(event_id: int, request: Request, db: SheetDB = Depends(get_db))
             "schedule_text": schedule_text,
             "clients": clients,
             "linked_client": linked_client,
+            "milestones": milestones,
+            "today": today,
             "cat_chart": {
                 "labels": list(cat_totals.keys()),
                 "data": list(cat_totals.values()),
@@ -347,6 +355,61 @@ def delete_payment(event_id: int, payment_id: int, db: SheetDB = Depends(get_db)
     if not any(p.id == payment_id for p in payments):
         raise HTTPException(status_code=404)
     db.delete_payment(payment_id)
+    return RedirectResponse(url=f"/events/{event_id}", status_code=303)
+
+
+@router.post("/events/{event_id}/milestones")
+def add_milestone(
+    event_id: int,
+    phase: str = Form(...),
+    due_date: str = Form(""),
+    notes: str = Form(""),
+    db: SheetDB = Depends(get_db),
+):
+    if db.get_event(event_id) is None:
+        raise HTTPException(status_code=404)
+    milestones = db.list_milestones(event_id=event_id)
+    position = len(milestones)
+    db.create_milestone(
+        event_id=event_id, phase=phase.strip(),
+        position=position,
+        due_date=_parse_date(due_date),
+        notes=notes.strip(),
+    )
+    db.sync_delivery_status(event_id)
+    return RedirectResponse(url=f"/events/{event_id}", status_code=303)
+
+
+@router.post("/events/{event_id}/milestones/{m_id}/toggle")
+def toggle_milestone(event_id: int, m_id: int, db: SheetDB = Depends(get_db)):
+    if db.get_event(event_id) is None:
+        raise HTTPException(status_code=404)
+    db.toggle_milestone(m_id)
+    db.sync_delivery_status(event_id)
+    return RedirectResponse(url=f"/events/{event_id}", status_code=303)
+
+
+@router.post("/events/{event_id}/milestones/{m_id}")
+def update_milestone(
+    event_id: int,
+    m_id: int,
+    due_date: str = Form(""),
+    notes: str = Form(""),
+    db: SheetDB = Depends(get_db),
+):
+    if db.get_event(event_id) is None:
+        raise HTTPException(status_code=404)
+    db.update_milestone(m_id, due_date=_parse_date(due_date), notes=notes.strip())
+    db.sync_delivery_status(event_id)
+    return RedirectResponse(url=f"/events/{event_id}", status_code=303)
+
+
+@router.post("/events/{event_id}/milestones/{m_id}/delete")
+def delete_milestone(event_id: int, m_id: int, db: SheetDB = Depends(get_db)):
+    if db.get_event(event_id) is None:
+        raise HTTPException(status_code=404)
+    db.delete_milestone(m_id)
+    db.sync_delivery_status(event_id)
     return RedirectResponse(url=f"/events/{event_id}", status_code=303)
 
 

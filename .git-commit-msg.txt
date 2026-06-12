@@ -1,0 +1,30 @@
+feat(assist): communication log, AI reply drafts, lead briefs + client milestone dates
+
+Closes out Stage A: the human-in-the-loop AI assists and the data substrate
+they need.
+
+- communication_log table (entity_type/entity_id, channel, direction,
+  summary): per-lead touch history card on lead detail with add/delete.
+  The FIRST outbound touch on a lead auto-stamps leads.first_response_at —
+  response time is the strongest conversion signal for the future in-app ML
+  model, captured from day one. Inbound touches never stamp it.
+- app/services/assist.py: draft_reply() — editable WhatsApp-ready first
+  reply (studio name, event/date/city/budget context; system prompt forbids
+  invented prices/availability); summarize_lead() — 3-line brief from notes
+  + follow-ups + touch history. Both are explicit button clicks (never cron,
+  never page render); LLMError → flash, never a 500. Draft opens in WhatsApp
+  via wa.me with the edited textarea text.
+- Clients gain birthday/anniversary (form, detail chips); dashboard gains a
+  "Campaign opportunities this month" card (year-agnostic month match,
+  WhatsApp wishes links) for repeat-business outreach.
+- Fixed a latent bug the new fields exposed: the lead quick-status form's
+  hidden-field carrier omitted budget_range/city, so any quick status update
+  would have wiped them.
+- Alembic rev 0003_comm_log_capture (additive; chain 0001→0002→0003
+  rehearsed against an old-schema SQLite stand-in, columns + table verified).
+- tests/test_assist.py: 9 tests (first-response stamping incl. not-
+  overwritten and inbound-ignored, comm routes, prompt context, summary
+  touches, session draft show-once, LLM-error flash, client date roundtrip,
+  dashboard card). Full suite: 118 passed.
+
+Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>

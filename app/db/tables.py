@@ -83,6 +83,9 @@ class ClientRow(Base):
     address: Mapped[str | None] = mapped_column(Text, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[str] = mapped_column(String(64), default="")
+    # Repeat-business dates (anniversary shoots, birthday campaigns):
+    birthday: Mapped["Date | None"] = mapped_column(Date, nullable=True)
+    anniversary: Mapped["Date | None"] = mapped_column(Date, nullable=True)
 
 
 class PayeeRow(Base):
@@ -147,6 +150,20 @@ class LeadRow(Base):
     triage_source: Mapped[str] = mapped_column(String(16), default="")   # llm | ml | manual
     triage_reason: Mapped[str] = mapped_column(Text, default="")
     triaged_at: Mapped[str] = mapped_column(String(64), default="")
+    # First outbound touch (ISO timestamp) — set by the communication log;
+    # response time is the strongest conversion signal for the future ML model.
+    first_response_at: Mapped[str] = mapped_column(String(64), default="")
+
+
+class CommLogRow(Base):
+    __tablename__ = "communication_log"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    entity_type: Mapped[str] = mapped_column(String(16), index=True)   # lead | client | event
+    entity_id: Mapped[int] = mapped_column(Integer, index=True)
+    channel: Mapped[str] = mapped_column(String(16), default="whatsapp")  # whatsapp|email|call|meeting|other
+    direction: Mapped[str] = mapped_column(String(8), default="out")      # out | in
+    summary: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[str] = mapped_column(String(64), default="")
 
 
 class MetaMetricRow(Base):

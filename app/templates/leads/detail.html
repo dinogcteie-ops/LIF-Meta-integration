@@ -143,6 +143,100 @@
   </div>
 </div>
 
+<!-- AI assists: reply draft + summary -->
+{% if draft_reply %}
+<div class="card lif-card mb-4">
+  <div class="section-header">
+    <h5 class="section-title">✨ AI reply draft <span class="text-muted fw-normal" style="font-size:.8em">— edit before sending</span></h5>
+  </div>
+  <div class="card-body">
+    <textarea id="aiDraftText" class="form-control mb-2" rows="6">{{ draft_reply }}</textarea>
+    <div class="d-flex gap-2">
+      {% set wa_base = lead.contact | wa_link %}
+      {% if wa_base %}
+      <button type="button" class="btn btn-sm btn-success icon-btn" id="aiDraftWaBtn">
+        <i class="bi bi-whatsapp"></i>Open in WhatsApp
+      </button>
+      {% endif %}
+      <a href="/leads/{{ lead.id }}" class="btn btn-sm btn-outline-secondary">Dismiss</a>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% if lead_summary %}
+<div class="card lif-card mb-4">
+  <div class="section-header">
+    <h5 class="section-title">✨ Lead brief</h5>
+  </div>
+  <div class="card-body">
+    <div class="text-muted" style="white-space: pre-wrap">{{ lead_summary }}</div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Communication log -->
+<div class="card lif-card mb-4">
+  <div class="section-header d-flex align-items-center justify-content-between">
+    <h5 class="section-title">Communication log</h5>
+    <div class="d-flex gap-2">
+      <form method="post" action="/leads/{{ lead.id }}/draft-reply">
+        <button class="btn btn-sm btn-outline-primary icon-btn" title="AI-draft a first reply (editable before sending)">
+          <i class="bi bi-magic"></i>Draft reply
+        </button>
+      </form>
+      <form method="post" action="/leads/{{ lead.id }}/summarize">
+        <button class="btn btn-sm btn-outline-secondary icon-btn" title="3-line AI brief of this lead's history">
+          <i class="bi bi-card-text"></i>Summarize
+        </button>
+      </form>
+    </div>
+  </div>
+  <div class="card-body">
+    <form method="post" action="/leads/{{ lead.id }}/comm" class="d-flex align-items-end gap-2 flex-wrap mb-3">
+      <div>
+        <label class="form-label small mb-1">Channel</label>
+        <select name="channel" class="form-select form-select-sm" style="width:120px">
+          {% for c in comm_channels %}<option value="{{ c }}">{{ c | capitalize }}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="form-label small mb-1">Direction</label>
+        <select name="direction" class="form-select form-select-sm" style="width:90px">
+          <option value="out">Out</option>
+          <option value="in">In</option>
+        </select>
+      </div>
+      <div class="flex-grow-1">
+        <label class="form-label small mb-1">What happened?</label>
+        <input type="text" name="summary" class="form-control form-control-sm"
+               placeholder="e.g. Called — interested, wants album pricing" required>
+      </div>
+      <button class="btn btn-sm btn-dark">Log</button>
+    </form>
+    {% if comm_logs %}
+    <ul class="list-unstyled mb-0">
+      {% for c in comm_logs %}
+      <li class="d-flex align-items-start gap-2 py-2 border-top">
+        <i class="bi {{ {'whatsapp':'bi-whatsapp text-success','email':'bi-envelope','call':'bi-telephone','meeting':'bi-people','other':'bi-chat-dots'}[c.channel] }}"></i>
+        <div class="flex-grow-1">
+          <div class="small">{{ c.summary }}</div>
+          <div class="text-muted" style="font-size:.75rem">
+            {{ 'Sent' if c.direction == 'out' else 'Received' }} · {{ c.created_at[:16].replace('T', ' ') }}
+          </div>
+        </div>
+        <form method="post" action="/leads/{{ lead.id }}/comm/{{ c.id }}/delete"
+              onsubmit="return confirm('Delete this log entry?')">
+          <button class="btn btn-sm btn-link text-danger p-0" title="Delete"><i class="bi bi-x"></i></button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="text-muted small">No touches logged yet — the first outbound log stamps the response time.</div>
+    {% endif %}
+  </div>
+</div>
+
 <!-- Quick status update -->
 <div class="card lif-card mb-4">
   <div class="section-header">
@@ -163,6 +257,8 @@
       <input type="hidden" name="rejection_reason" id="qsRejectionHidden" value="{{ lead.rejection_reason }}">
       <input type="hidden" name="meta_campaign" value="{{ 'on' if lead.meta_campaign else '' }}">
       <input type="hidden" name="referral_name" value="{{ lead.referral_name }}">
+      <input type="hidden" name="budget_range" value="{{ lead.budget_range }}">
+      <input type="hidden" name="city" value="{{ lead.city }}">
       <input type="hidden" name="followup_status" value="{{ lead.followup_status }}">
       <input type="hidden" name="followup_date" id="qsFollowupHidden" value="{{ lead.followup_date or '' }}">
       <div>
@@ -230,6 +326,18 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+// AI draft → WhatsApp: open wa.me with the (possibly edited) textarea text.
+(function () {
+  const btn = document.getElementById('aiDraftWaBtn');
+  if (!btn) return;
+  const base = {{ (lead.contact | wa_link) | tojson }};
+  btn.addEventListener('click', () => {
+    const text = document.getElementById('aiDraftText').value;
+    window.open(base + '?text=' + encodeURIComponent(text), '_blank', 'noopener');
+  });
+})();
+</script>
 <script>
 // Quick "Update status" form: reveal the right inline field for the chosen status,
 // and ensure only one input per name submits (toggle `disabled` on the hidden carrier).

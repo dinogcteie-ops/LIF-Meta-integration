@@ -91,6 +91,21 @@ class Client:
     address: Optional[str] = None
     notes: Optional[str] = None
     created_at: str = ""
+    # Repeat-business dates (year matters for age only; campaigns match month/day):
+    birthday: Optional[date] = None
+    anniversary: Optional[date] = None
+
+
+@dataclass
+class CommLog:
+    """One logged touch with a lead/client/event — call, WhatsApp, email…"""
+    id: int
+    entity_type: str          # lead | client | event
+    entity_id: int
+    channel: str = "whatsapp" # whatsapp | email | call | meeting | other
+    direction: str = "out"    # out | in
+    summary: str = ""
+    created_at: str = ""
 
 
 @dataclass
@@ -150,6 +165,8 @@ class Lead:
     triage_source: str = ""      # llm | ml | manual
     triage_reason: str = ""
     triaged_at: str = ""
+    # First outbound touch (ISO timestamp; "" = not contacted yet):
+    first_response_at: str = ""
 
 
 @dataclass

@@ -67,6 +67,9 @@ _Last updated: 2026-06-10 (latency cache + dashboard breakdowns + directory back
 | **Lead pipeline** widget shows **Lost** + **Won % / Lost %** + the same source/date filters | 🔄 | same branch; `LeadFunnel.won_rate`/`lost_rate`, independent `pipe_*` filter |
 | **AI lead triage** — every new lead auto-classified Hot / Warm / Low-intent / Spam by LLM (Gemini free tier) inside the 5-min intake cron; badges + filter on leads list, 🔥 Hot chip, verdict + reason + manual override on lead detail; hot tag in new-lead owner email; daily LLM budget guard; LLM outage → lead imports untriaged, retried next tick | 🔄 | branch `feat/llm-triage`: `app/services/llm.py`, `triage.py`; needs `GEMINI_API_KEY` on Render |
 | **Structured lead capture** — `budget_range` + `city` promoted out of free-text notes (Sheet intake + manual form) | 🔄 | same branch; Alembic rev `0002_lead_triage_capture` |
+| **Communication log** — per-lead touch history (WhatsApp/email/call/meeting, in/out); first outbound touch auto-stamps `first_response_at` (response-time = future ML signal) | 🔄 | branch `feat/llm-assist`; `communication_log` table, Alembic rev `0003_comm_log_capture` |
+| **AI reply drafts + lead briefs** — "Draft reply" button on lead detail produces an editable WhatsApp-ready first reply (human always sends); "Summarize" gives a 3-line brief from notes + touch history | 🔄 | same branch; `app/services/assist.py`; needs `GEMINI_API_KEY` |
+| **Client milestone dates + campaign card** — client birthday/anniversary fields; dashboard "Campaign opportunities this month" card with WhatsApp wishes links (repeat-business outreach) | 🔄 | same branch |
 
 ## Dashboards — sharing
 

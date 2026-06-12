@@ -303,6 +303,16 @@ def dashboard(request: Request,
         rev_by_status[s]["quoted"]   += r.event.quoted_amount
         rev_by_status[s]["received"] += r.income
 
+    # Campaign opportunities — clients with a birthday/anniversary this month
+    # (year-agnostic match). Feeds repeat-business outreach: anniversary
+    # shoots, birthday wishes, maternity/newborn follow-ons.
+    campaign_opps = []
+    for c in db.list_clients():
+        for occasion, d in (("Birthday", c.birthday), ("Anniversary", c.anniversary)):
+            if d and d.month == today.month:
+                campaign_opps.append({"client": c, "occasion": occasion, "day": d.day})
+    campaign_opps.sort(key=lambda o: o["day"])
+
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -332,5 +342,6 @@ def dashboard(request: Request,
             "paid_by_scope":       dict(paid_by_scope),
             "paid_expenses_detail": paid_expenses_detail,
             "rev_by_status":       rev_by_status,
+            "campaign_opps":       campaign_opps,
         },
     )

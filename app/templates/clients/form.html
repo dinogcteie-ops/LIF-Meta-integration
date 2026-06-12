@@ -35,6 +35,18 @@
                value="{{ client.address if client else '' }}"
                placeholder="City, State">
       </div>
+      <div class="col-md-3">
+        <label class="form-label">Birthday</label>
+        <input name="birthday" class="form-control" type="date"
+               value="{{ client.birthday if client and client.birthday else '' }}">
+        <div class="form-text">For repeat-business campaigns.</div>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Anniversary</label>
+        <input name="anniversary" class="form-control" type="date"
+               value="{{ client.anniversary if client and client.anniversary else '' }}">
+        <div class="form-text">Anniversary shoots, wishes.</div>
+      </div>
       <div class="col-md-12">
         <label class="form-label">Notes</label>
         <textarea name="notes" class="form-control" rows="2"

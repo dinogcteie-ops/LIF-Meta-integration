@@ -18,12 +18,12 @@ from sqlalchemy import select
 
 from app.db.engine import SessionLocal
 from app.db.tables import (
-    AuditRow, CategoryRow, ClientRow, EventRow, ExpenseRow, LeadRow,
+    AuditRow, CategoryRow, ClientRow, CommLogRow, EventRow, ExpenseRow, LeadRow,
     MetaMetricRow, PayeeRow, PaymentRow, SettingRow,
 )
 from app.domain import (
-    AuditEntry, Client, Event, EventPayment, Expense, ExpenseCategory, Lead,
-    MetaMetric, Payee,
+    AuditEntry, Client, CommLog, Event, EventPayment, Expense, ExpenseCategory,
+    Lead, MetaMetric, Payee,
 )
 from app.enums import CategoryScope, EventStatus, PaymentStatus
 
@@ -82,7 +82,14 @@ def _expense(r: ExpenseRow) -> Expense:
 def _client(r: ClientRow) -> Client:
     return Client(id=r.id, name=r.name, phone=r.phone or None, email=r.email or None,
                   address=r.address or None, notes=r.notes or None,
-                  created_at=r.created_at or "")
+                  created_at=r.created_at or "",
+                  birthday=r.birthday, anniversary=r.anniversary)
+
+
+def _commlog(r: CommLogRow) -> CommLog:
+    return CommLog(id=r.id, entity_type=r.entity_type, entity_id=r.entity_id,
+                   channel=r.channel or "whatsapp", direction=r.direction or "out",
+                   summary=r.summary or "", created_at=r.created_at or "")
 
 
 def _payee(r: PayeeRow) -> Payee:
@@ -112,6 +119,7 @@ def _lead(r: LeadRow) -> Lead:
         budget_range=r.budget_range or "", city=r.city or "",
         triage=r.triage or "", triage_source=r.triage_source or "",
         triage_reason=r.triage_reason or "", triaged_at=r.triaged_at or "",
+        first_response_at=r.first_response_at or "",
     )
 
 
@@ -370,23 +378,29 @@ class Database:
 
     def create_client(self, name: str, phone: Optional[str] = None,
                       email: Optional[str] = None, address: Optional[str] = None,
-                      notes: Optional[str] = None) -> Client:
+                      notes: Optional[str] = None,
+                      birthday: Optional[date] = None,
+                      anniversary: Optional[date] = None) -> Client:
         with self._s() as s:
             r = ClientRow(name=name, phone=phone, email=email, address=address,
-                          notes=notes, created_at=_now())
+                          notes=notes, created_at=_now(),
+                          birthday=birthday, anniversary=anniversary)
             s.add(r); s.flush()
             self._audit(s, "client", r.id, "create", f"Created client '{name}'")
             return _client(r)
 
     def update_client(self, client_id: int, name: str, phone: Optional[str] = None,
                       email: Optional[str] = None, address: Optional[str] = None,
-                      notes: Optional[str] = None) -> Optional[Client]:
+                      notes: Optional[str] = None,
+                      birthday: Optional[date] = None,
+                      anniversary: Optional[date] = None) -> Optional[Client]:
         with self._s() as s:
             r = s.get(ClientRow, client_id)
             if r is None:
                 return None
             r.name = name; r.phone = phone; r.email = email
             r.address = address; r.notes = notes
+            r.birthday = birthday; r.anniversary = anniversary
             s.flush()
             return _client(r)
 
@@ -679,6 +693,42 @@ class Database:
                     .where((LeadRow.triage == "") | (LeadRow.triage.is_(None)))
                     .order_by(LeadRow.id.desc()).limit(limit))
             return [_lead(r) for r in s.scalars(stmt).all()]
+
+    # ── Communication log ─────────────────────────────────────────────────────
+
+    def list_comm_logs(self, entity_type: str, entity_id: int) -> list[CommLog]:
+        with self._s() as s:
+            stmt = (select(CommLogRow)
+                    .where(CommLogRow.entity_type == entity_type,
+                           CommLogRow.entity_id == entity_id)
+                    .order_by(CommLogRow.id.desc()))
+            return [_commlog(r) for r in s.scalars(stmt).all()]
+
+    def create_comm_log(self, entity_type: str, entity_id: int,
+                        channel: str = "whatsapp", direction: str = "out",
+                        summary: str = "") -> CommLog:
+        """Log one touch. The first OUTBOUND touch on a lead also stamps
+        ``leads.first_response_at`` — response time is the strongest
+        conversion signal for the future ML model."""
+        with self._s() as s:
+            r = CommLogRow(entity_type=entity_type, entity_id=entity_id,
+                           channel=channel, direction=direction,
+                           summary=summary, created_at=_now())
+            s.add(r); s.flush()
+            if entity_type == "lead" and direction == "out":
+                lead_row = s.get(LeadRow, entity_id)
+                if lead_row is not None and not (lead_row.first_response_at or ""):
+                    lead_row.first_response_at = r.created_at
+            self._audit(s, "lead" if entity_type == "lead" else entity_type,
+                        entity_id, "update",
+                        f"Logged {direction} {channel} touch")
+            return _commlog(r)
+
+    def delete_comm_log(self, log_id: int) -> None:
+        with self._s() as s:
+            r = s.get(CommLogRow, log_id)
+            if r is not None:
+                s.delete(r)
 
     # ── Enrichment ────────────────────────────────────────────────────────────
 

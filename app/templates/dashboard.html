@@ -45,6 +45,33 @@
 </div>
 {% endif %}
 
+{% if campaign_opps %}
+<!-- Campaign opportunities — repeat-business outreach this month -->
+<div class="card lif-card mb-4">
+  <div class="section-header">
+    <h5 class="section-title"><i class="bi bi-gift me-1"></i>Campaign opportunities this month</h5>
+  </div>
+  <div class="card-body py-2">
+    <ul class="list-unstyled mb-0">
+      {% for o in campaign_opps %}
+      <li class="d-flex align-items-center gap-2 py-2 {{ 'border-top' if not loop.first else '' }}">
+        <i class="bi {{ 'bi-gift text-warning' if o.occasion == 'Birthday' else 'bi-heart text-danger' }}"></i>
+        <a href="/clients/{{ o.client.id }}" class="action-link fw-semibold">{{ o.client.name }}</a>
+        <span class="text-muted small">{{ o.occasion }} · {{ o.day }} {{ today.strftime('%b') }}</span>
+        {% set wa = o.client.phone | wa_link %}
+        {% if wa %}
+        <a href="{{ wa }}" class="action-link text-success ms-auto" target="_blank"
+           rel="noopener noreferrer" title="WhatsApp {{ o.client.name }}">
+          <i class="bi bi-whatsapp"></i> Send wishes
+        </a>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
 <!-- ═══ Sprint 1 & 5: KPI Cards with Sparklines ═══ -->
 {% set kpi_formulas = {
   "Monthly Revenue":  "Payments received during the current calendar month.",

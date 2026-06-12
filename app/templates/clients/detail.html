@@ -15,6 +15,12 @@
       {% if client.address %}
         <span class="contact-chip"><i class="bi bi-geo-alt"></i> {{ client.address }}</span>
       {% endif %}
+      {% if client.birthday %}
+        <span class="contact-chip"><i class="bi bi-gift"></i> Birthday {{ client.birthday.strftime('%d %b') }}</span>
+      {% endif %}
+      {% if client.anniversary %}
+        <span class="contact-chip"><i class="bi bi-heart"></i> Anniversary {{ client.anniversary.strftime('%d %b') }}</span>
+      {% endif %}
     </div>
   </div>
   <div class="toolbar">

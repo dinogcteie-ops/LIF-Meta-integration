@@ -188,6 +188,10 @@ def lead_detail(lead_id: int, request: Request, db: SheetDB = Depends(get_db)):
             "linked_client":     linked_client,
             "followup_statuses": list(FollowupStatus),
             "lost_reasons":      list(LostReason),
+            "comm_logs":         db.list_comm_logs("lead", lead_id),
+            "comm_channels":     _COMM_CHANNELS,
+            "draft_reply":       request.session.pop("draft_reply", None),
+            "lead_summary":      request.session.pop("lead_summary", None),
         }
     )
 
@@ -266,6 +270,71 @@ def update_lead(
     )
     if lead is None:
         raise HTTPException(status_code=404)
+    return RedirectResponse(url=f"/leads/{lead_id}", status_code=303)
+
+
+_COMM_CHANNELS = ("whatsapp", "email", "call", "meeting", "other")
+
+
+@router.post("/leads/{lead_id}/comm")
+def add_comm_log(
+    lead_id: int,
+    request: Request,
+    channel: str = Form("whatsapp"),
+    direction: str = Form("out"),
+    summary: str = Form(""),
+    db: SheetDB = Depends(get_db),
+):
+    if db.get_lead(lead_id) is None:
+        raise HTTPException(status_code=404)
+    if channel not in _COMM_CHANNELS:
+        channel = "other"
+    if direction not in ("out", "in"):
+        direction = "out"
+    if not summary.strip():
+        request.session["flash"] = "Add a one-line summary of the conversation."
+        return RedirectResponse(url=f"/leads/{lead_id}", status_code=303)
+    db.create_comm_log("lead", lead_id, channel=channel, direction=direction,
+                       summary=summary.strip())
+    return RedirectResponse(url=f"/leads/{lead_id}", status_code=303)
+
+
+@router.post("/leads/{lead_id}/comm/{log_id}/delete")
+def delete_comm_log(lead_id: int, log_id: int, db: SheetDB = Depends(get_db)):
+    if db.get_lead(lead_id) is None:
+        raise HTTPException(status_code=404)
+    db.delete_comm_log(log_id)
+    return RedirectResponse(url=f"/leads/{lead_id}", status_code=303)
+
+
+@router.post("/leads/{lead_id}/draft-reply")
+def draft_reply_route(lead_id: int, request: Request, db: SheetDB = Depends(get_db)):
+    """Explicit button click → editable AI draft. Human always sends it."""
+    from app.services import llm
+    from app.services.assist import draft_reply
+    lead = db.get_lead(lead_id)
+    if lead is None:
+        raise HTTPException(status_code=404)
+    studio = db.get_settings_dict().get("studio_name", "Life in Frame")
+    try:
+        request.session["draft_reply"] = draft_reply(db, lead, studio)
+    except llm.LLMError as e:
+        request.session["flash"] = f"Couldn't draft a reply: {e}"
+    return RedirectResponse(url=f"/leads/{lead_id}", status_code=303)
+
+
+@router.post("/leads/{lead_id}/summarize")
+def summarize_route(lead_id: int, request: Request, db: SheetDB = Depends(get_db)):
+    from app.services import llm
+    from app.services.assist import summarize_lead
+    lead = db.get_lead(lead_id)
+    if lead is None:
+        raise HTTPException(status_code=404)
+    logs = db.list_comm_logs("lead", lead_id)
+    try:
+        request.session["lead_summary"] = summarize_lead(db, lead, logs)
+    except llm.LLMError as e:
+        request.session["flash"] = f"Couldn't summarize: {e}"
     return RedirectResponse(url=f"/leads/{lead_id}", status_code=303)
 
 

@@ -6,7 +6,7 @@ from app.database import get_db, SheetDB
 from app.services.reports import event_profits, top_clients
 from app.rbac import require
 from app.templating import templates
-from app.validators import find_phone_match, valid_email
+from app.validators import find_phone_match, parse_date_safe, valid_email
 
 router = APIRouter(dependencies=[Depends(require("directory.view"))])
 
@@ -43,6 +43,8 @@ def create_client(
     email: str = Form(""),
     address: str = Form(""),
     notes: str = Form(""),
+    birthday: str = Form(""),
+    anniversary: str = Form(""),
     db: SheetDB = Depends(get_db),
 ):
     if email.strip() and not valid_email(email):
@@ -56,6 +58,8 @@ def create_client(
         email=email.strip() or None,
         address=address.strip() or None,
         notes=notes.strip() or None,
+        birthday=parse_date_safe(birthday, "Birthday", years_back=100)[0],
+        anniversary=parse_date_safe(anniversary, "Anniversary", years_back=100)[0],
     )
     if dup is not None:
         request.session["flash"] = (
@@ -114,6 +118,8 @@ def update_client(
     email: str = Form(""),
     address: str = Form(""),
     notes: str = Form(""),
+    birthday: str = Form(""),
+    anniversary: str = Form(""),
     db: SheetDB = Depends(get_db),
 ):
     if email.strip() and not valid_email(email):
@@ -126,6 +132,8 @@ def update_client(
         email=email.strip() or None,
         address=address.strip() or None,
         notes=notes.strip() or None,
+        birthday=parse_date_safe(birthday, "Birthday", years_back=100)[0],
+        anniversary=parse_date_safe(anniversary, "Anniversary", years_back=100)[0],
     )
     if c is None:
         raise HTTPException(status_code=404)

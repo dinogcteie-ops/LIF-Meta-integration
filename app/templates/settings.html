@@ -142,8 +142,11 @@
       <button type="submit" class="btn btn-outline-dark btn-sm icon-btn">
         <i class="bi bi-send"></i>Send report now
       </button>
+      <button type="button" id="lr-preview" class="btn btn-outline-secondary btn-sm icon-btn">
+        <i class="bi bi-eye"></i>Preview in browser
+      </button>
       <span class="text-muted small align-self-center">
-        Generates charts &amp; emails owners immediately.
+        Preview needs no email; "Send" emails owners (needs recipients + email setup).
       </span>
     </form>
   </div>
@@ -338,6 +341,15 @@
     this.action = '/jobs/lead-report?start=' + encodeURIComponent(s)
                 + '&end='   + encodeURIComponent(n);
     this.submit();
+  });
+
+  // Preview: open the rendered report (charts inlined) in a new tab — no email.
+  document.getElementById('lr-preview').addEventListener('click', function () {
+    const s = document.getElementById('lr-start').value;
+    const n = document.getElementById('lr-end').value;
+    let url = '/jobs/lead-report/preview';
+    if (s && n) url += '?start=' + encodeURIComponent(s) + '&end=' + encodeURIComponent(n);
+    window.open(url, '_blank', 'noopener');
   });
 </script>
 {% endblock %}

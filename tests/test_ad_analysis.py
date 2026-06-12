@@ -112,3 +112,23 @@ def test_meta_page_renders_with_analysis_card(client, db):
     r = client.get("/meta")
     assert r.status_code == 200
     assert "AI analysis" in r.text
+
+
+def test_report_preview_renders_in_browser(client, db, monkeypatch):
+    import app.routes.jobs as jobs
+    monkeypatch.setattr(jobs, "analysis_or_fallback",
+                        lambda *a, **k: "AI says: campaign B's CPL improved.")
+    r = client.get("/jobs/lead-report/preview")
+    assert r.status_code == 200
+    assert "Instagram Lead Report" in r.text
+    assert "data:image/png;base64" in r.text          # charts inlined for browser
+    assert "cid:" not in r.text                         # no email-only refs leak
+    assert "campaign B's CPL improved" in r.text        # AI section rendered
+
+
+def test_report_preview_requires_login(db):
+    from fastapi.testclient import TestClient
+    from app.main import app
+    with TestClient(app) as anon:                       # not logged in
+        r = anon.get("/jobs/lead-report/preview", follow_redirects=False)
+    assert r.status_code == 403

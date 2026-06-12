@@ -12,7 +12,7 @@ from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from app.config import get_settings
 from app.database import get_db, SheetDB
@@ -106,17 +106,10 @@ def recurring_expenses_job(request: Request, dry_run: bool = False,
     return JSONResponse(summary)
 
 
-def _build_and_send_lead_report(
-    db: SheetDB, recipients: list[str], period_start: date, period_end: date
-) -> str:
-    """Build the Instagram report's charts + HTML and email it. Returns the
-    period label on success; raises on failure so the caller can report it.
-
-    Runs synchronously inside the request: the open connection keeps the (free
-    tier) instance alive until the send completes, and matplotlib is pre-warmed
-    at boot so this stays fast. An in-process BackgroundTask is unreliable here
-    — the instance can be reclaimed once the response returns, killing the
-    detached task before the email is sent."""
+def _build_lead_report(db: SheetDB, period_start: date, period_end: date):
+    """Build the report: returns (subject, html, images, text, period_str).
+    Also generates + caches the AI ads/financials narrative (shown on /meta).
+    Shared by the email-send path and the browser-preview path."""
     prev_start, prev_end = previous_period(period_start, period_end)
     label_curr = f"{fmt_date(period_start)}–{fmt_date(period_end)}"
     label_prev = f"{fmt_date(prev_start)}–{fmt_date(prev_end)}"
@@ -135,10 +128,60 @@ def _build_and_send_lead_report(
         all_ig, leads_curr, leads_prev, label_curr, label_prev, period_str,
         ai_analysis=ai_text,
     )
+    return subject, html, images, text, period_str
+
+
+def _build_and_send_lead_report(
+    db: SheetDB, recipients: list[str], period_start: date, period_end: date
+) -> str:
+    """Build the report and email it. Returns the period label on success;
+    raises on failure so the caller can report it.
+
+    Runs synchronously inside the request: the open connection keeps the (free
+    tier) instance alive until the send completes, and matplotlib is pre-warmed
+    at boot so this stays fast. An in-process BackgroundTask is unreliable here
+    — the instance can be reclaimed once the response returns, killing the
+    detached task before the email is sent."""
+    subject, html, images, text, period_str = _build_lead_report(
+        db, period_start, period_end)
     send_email_with_images(subject, html, images, recipients, text)
     log.info("Instagram lead report sent for %s to %d recipient(s)",
              period_str, len(recipients))
     return period_str
+
+
+@router.get("/jobs/lead-report/preview")
+def lead_report_preview(
+    request: Request,
+    start: Optional[str] = None,
+    end:   Optional[str] = None,
+    db:    SheetDB = Depends(get_db),
+):
+    """Render the report in the browser (no email). Logged-in users only.
+
+    Lets the owner SEE the report + AI ads/financials narrative without an
+    email transport configured — the cid: chart attachments are inlined as
+    base64 data URIs so they render in a normal browser tab.
+    """
+    if not _logged_in(request):
+        return JSONResponse({"error": "login required"}, status_code=403)
+    try:
+        if start and end:
+            period_start = date.fromisoformat(start)
+            period_end = date.fromisoformat(end)
+            if period_end < period_start:
+                period_start, period_end = period_end, period_start
+        else:
+            period_start, period_end = default_period(date.today())
+    except ValueError as exc:
+        return JSONResponse({"error": f"invalid date: {exc}"}, status_code=400)
+
+    _, html, images, _, _ = _build_lead_report(db, period_start, period_end)
+    import base64
+    for cid, png in images.items():
+        uri = "data:image/png;base64," + base64.b64encode(png).decode()
+        html = html.replace(f"cid:{cid}", uri)
+    return HTMLResponse(html)
 
 
 @router.post("/jobs/lead-report")

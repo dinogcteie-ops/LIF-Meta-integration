@@ -34,3 +34,5 @@ sturdy-layout-*.json
 
 # Node (Netlify functions)
 node_modules/
+.git-commit-msg.txt
+dev/

@@ -84,9 +84,12 @@ cadence**, not per-change. So:
   every actual-money calc (payables, profit, KPIs, bank) auto-ignores them. Opt in
   with `include_estimates=True` or `status="estimated"`. They surface only on the
   event detail's "Estimated costs / Projected profit" card.
-- **Money is in lakhs (₹L).** Lead/event amounts store lakh values; the `| money`
-  Jinja filter renders them with the ₹ symbol and Indian digit grouping. Form labels
-  say "(₹ L)". `| pct` formats percentages.
+- **Money is in plain rupees (₹).** Every amount — quotes, payments, expenses,
+  budgets — stores whole-rupee values; the `| money` Jinja filter renders them with
+  the ₹ symbol and Indian digit grouping. `| pct` formats percentages.
+  (Historical note: lead/event quotes were once stored in lakhs; the one-time
+  `migrate_money_to_inr.py` converted them to rupees on 2026-06-12. `parse_amount`'s
+  ceiling is now ₹10 cr — a fat-finger guard, not a unit hint.)
 - Match surrounding style: section headers use `# ─── Title ───` comment banners;
   templates use Bootstrap + the existing `lif-card` / `funnel-card` / `cat-dot`
   component classes.

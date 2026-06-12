@@ -366,12 +366,12 @@
             <span class="badge bg-danger ms-1 small">Overdue</span>
           {% endif %}
         </div>
-        <!-- inline due-date update -->
+        <!-- inline due-date update — saves implicitly when a date is picked -->
         <form method="post" action="/events/{{ event.id }}/milestones/{{ m.id }}" class="d-flex align-items-center gap-1">
           <input type="date" name="due_date" class="form-control form-control-sm"
-                 style="width:140px;" value="{{ m.due_date or '' }}">
+                 style="width:140px;" value="{{ m.due_date or '' }}"
+                 onchange="this.form.submit()" title="Pick a due date — saves automatically">
           <input type="hidden" name="notes" value="{{ m.notes }}">
-          <button type="submit" class="btn btn-outline-secondary btn-sm">Save</button>
         </form>
         <!-- delete -->
         <form method="post" action="/events/{{ event.id }}/milestones/{{ m.id }}/delete">

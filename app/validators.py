@@ -43,11 +43,12 @@ def valid_email(raw: str) -> bool:
 # ─── Amounts ──────────────────────────────────────────────────────────────────
 
 def parse_amount(value: float, label: str, minimum: float = 0.0,
-                 maximum: float = 100_000.0) -> tuple[float, Optional[str]]:
-    """Validate a ₹-lakh amount. Rejects negatives, NaN/inf and absurd values.
+                 maximum: float = 100_000_000.0) -> tuple[float, Optional[str]]:
+    """Validate a ₹ (rupee) amount. Rejects negatives, NaN/inf and absurd values.
 
-    The 1-lakh-crore default ceiling (₹1L × 100,000) is purely a fat-finger
-    guard — no studio quote or expense legitimately reaches it.
+    All money in the app is stored in plain rupees. The ₹10-crore default
+    ceiling is purely a fat-finger guard — no studio quote, payment or expense
+    legitimately reaches it.
     """
     try:
         v = float(value)
@@ -58,7 +59,7 @@ def parse_amount(value: float, label: str, minimum: float = 0.0,
     if v < minimum:
         return 0.0, f"{label} cannot be negative."
     if v > maximum:
-        return 0.0, f"{label} looks too large — amounts are in ₹ lakhs."
+        return 0.0, f"{label} looks too large — please check the amount."
     return round(v, 4), None
 
 

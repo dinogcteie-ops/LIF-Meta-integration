@@ -35,9 +35,9 @@ _SYSTEM = (
     "or declined and why it matters; (2) per-campaign cost-per-lead trend and "
     "one budget reallocation suggestion; (3) a lead-quality note from the "
     "triage mix; (4) one financial-health observation; (5) exactly three "
-    "concrete actions, numbered. Ad spend figures are INR actuals; CRM revenue/"
-    "expense figures are in ₹ lakhs (1 lakh = 100,000). Never invent numbers "
-    "that are not in the data."
+    "concrete actions, numbered. All figures — ad spend and CRM revenue/expense "
+    "— are in plain Indian rupees (INR). Never invent numbers that are not in "
+    "the data."
 )
 
 
@@ -95,7 +95,7 @@ def gather_ad_aggregates(db, period_start: date, period_end: date,
         "funnel_current": _funnel_counts(leads_curr),
         "funnel_previous": _funnel_counts(leads_prev),
         "triage_mix_current": _triage_mix(leads_curr),
-        "financials_lakhs": {
+        "financials_inr": {
             "total_income": round(bank.total_income, 2),
             "total_paid_expense": round(bank.total_paid_expense, 2),
             "pending_from_clients": round(bank.total_pending_from_clients, 2),

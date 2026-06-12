@@ -48,6 +48,14 @@ def test_parse_amount_accepts_valid():
     assert v == 0 and err is None
 
 
+def test_parse_amount_accepts_rupee_amounts():
+    # All money is in rupees now — a ₹2.5L quote (250000) and a ₹50L quote
+    # must pass (these were wrongly rejected under the old ₹1L-lakh ceiling).
+    for amt in (250000, 5_000_000, 99_999_999):
+        v, err = parse_amount(amt, "Quote")
+        assert err is None and v == amt
+
+
 def test_parse_amount_rejects_negative_nan_huge():
     _, err = parse_amount(-1, "Quote")
     assert err and "negative" in err

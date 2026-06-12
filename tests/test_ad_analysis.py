@@ -34,7 +34,7 @@ def test_gather_aggregates_campaign_sums_and_cpl(db):
     assert cur["spend"] == 1500.0           # 15 days × 100
     assert cur["leads"] == 30
     assert cur["cpl"] == 50.0
-    assert "financials_lakhs" in agg and "funnel_current" in agg
+    assert "financials_inr" in agg and "funnel_current" in agg
 
 
 def test_cpl_zero_guard(db):

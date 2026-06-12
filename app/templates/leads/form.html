@@ -52,16 +52,16 @@
                value="{{ lead.tentative_date if lead else '' }}">
       </div>
       <div class="col-md-2">
-        <label class="form-label">Quote (₹ L)</label>
-        <input type="number" step="0.01" min="0" name="quoted_amount" class="form-control"
+        <label class="form-label">Quote (₹)</label>
+        <input type="number" step="1" min="0" name="quoted_amount" class="form-control"
                value="{{ lead.quoted_amount if lead else '' }}"
-               placeholder="e.g. 2.5">
+               placeholder="e.g. 250000">
       </div>
       <div class="col-md-2">
-        <label class="form-label">Revised quote (₹ L)</label>
-        <input type="number" step="0.01" min="0" name="revised_quote" class="form-control"
+        <label class="form-label">Revised quote (₹)</label>
+        <input type="number" step="1" min="0" name="revised_quote" class="form-control"
                value="{{ lead.revised_quote if lead else '' }}"
-               placeholder="e.g. 2.0">
+               placeholder="e.g. 200000">
       </div>
       <div class="col-md-3">
         <label class="form-label">City</label>
